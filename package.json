@@ -122,7 +122,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "Javis603",
+        "owner": "mai-ming",
         "repo": "token-monitor"
       }
     ]
