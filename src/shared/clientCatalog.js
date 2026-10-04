@@ -4,7 +4,7 @@
 //
 // This is the single source of truth for a client's *identity* — id, label,
 // display position, whether it is tracked on a fresh install, and whether its
-// usage is parsed locally instead of by tokscale. Before this file, that data
+// usage is parsed only by Token Monitor's tokscale fork. Before this file, that data
 // lived in two hand-maintained lists (this module's CSVs and the renderer's
 // own KNOWN_CLIENTS/clientLabels) that had to be kept in the same order by
 // hand; the shared copy even rebuilt the order procedurally to match the
@@ -28,7 +28,7 @@
   //
   // `defaultTracked: false` keeps a client wired and selectable but off on a
   // fresh install. qodercn is opt-in per the upstream tool-support boundary — a
-  // local adapter that may break when Qoder changes its DB schema.
+  // fork-only parser that may break when Qoder changes its storage format.
   //
   // mimo (MiMo) ships default-tracked even though mimocode.db auto-imports
   // Claude Code sessions (its claude-import service): tokscale parses the store
@@ -40,11 +40,19 @@
   // fresh install is affected; saved selections are untouched. Revisit if
   // tokscale ever marks claude-import sessions.
   //
-  // `locallyParsed: true` means the client is excluded from the tokscale client
-  // filter and read by a local adapter instead (collector.js). This is an axis
-  // of its own, not a collection "mode": self-synced clients (cursor,
-  // antigravity) still go through tokscale and are tracked separately in
-  // collector.js.
+  // `forkOnly: true` means the client is parsed by Token Monitor's tokscale
+  // fork (crates/tokscale-core/src/token_monitor/ in Javis603/tokscale) and is
+  // unknown to upstream tokscale: the collector requests it with --client like
+  // any other id, but it is absent from tokscale's --help client list and does
+  // not honour TOKSCALE_EXTRA_DIRS. This is an axis of its own, not a
+  // collection "mode": self-synced clients (cursor, antigravity) are tracked
+  // separately in collector.js.
+  //
+  // `locallyParsed: true` is the other side of that coin: the client is read by
+  // this build's own JavaScript adapter and never handed to tokscale at all, so
+  // it has no tokscale client contract and is excluded from every tokscale scan
+  // (see LOCAL_CLIENT_IDS in collector.js, which derives from this list).
+  // Distinct from `forkOnly`, which still goes through the tokscale binary.
   const CLIENT_CATALOG = Object.freeze([
     { id: 'claude', label: 'Claude Code' },
     { id: 'codex', label: 'Codex' },
@@ -75,8 +83,11 @@
     { id: 'kiro', label: 'Kiro' },
     { id: 'codebuddy', label: 'CodeBuddy' },
     { id: 'workbuddy', label: 'WorkBuddy' },
-    { id: 'proma', label: 'Proma', locallyParsed: true },
-    { id: 'qodercn', label: 'Qoder CN', defaultTracked: false, locallyParsed: true },
+    { id: 'proma', label: 'Proma', forkOnly: true },
+    { id: 'qodercn', label: 'Qoder CN', defaultTracked: false, forkOnly: true },
+    // Deliberately NOT forkOnly: that flag means "parsed by Token Monitor's
+    // tokscale fork", while liveagent is read in-process by this build's own
+    // adapter (providers/liveagent) and never reaches the tokscale binary.
     { id: 'liveagent', label: 'LiveAgent', defaultTracked: true, locallyParsed: true },
     { id: 'reasonix', label: 'Reasonix' },
     { id: 'dsh', label: 'DeepSeek Harness' },
@@ -84,9 +95,11 @@
     { id: 'lmstudio', label: 'LM Studio' },
     { id: 'unsloth', label: 'Unsloth' },
     { id: 'devin', label: 'Devin' },
-    { id: 'fx', label: 'fx' }
+    { id: 'fx', label: 'fx' },
+    { id: 'mcode', label: 'MiniMax Code' }
   ].map((client) => Object.freeze({
     defaultTracked: true,
+    forkOnly: false,
     locallyParsed: false,
     ...client
   })));
@@ -114,6 +127,9 @@
   const DEFAULT_CLIENT_IDS = Object.freeze(
     CLIENT_CATALOG.filter((client) => client.defaultTracked).map((client) => client.id)
   );
+  const FORK_ONLY_CLIENT_IDS = Object.freeze(
+    CLIENT_CATALOG.filter((client) => client.forkOnly).map((client) => client.id)
+  );
   const LOCALLY_PARSED_CLIENT_IDS = Object.freeze(
     CLIENT_CATALOG.filter((client) => client.locallyParsed).map((client) => client.id)
   );
@@ -133,6 +149,7 @@
     NON_CATALOG_CLIENT_LABELS,
     CLIENT_IDS,
     DEFAULT_CLIENT_IDS,
+    FORK_ONLY_CLIENT_IDS,
     LOCALLY_PARSED_CLIENT_IDS,
     CLIENT_LABELS,
     KNOWN_CLIENT_LIST

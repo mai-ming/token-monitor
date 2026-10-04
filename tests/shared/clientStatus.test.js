@@ -8,6 +8,13 @@ const test = require('node:test');
 
 const { statusFromSignals, deriveClientStatus, clientDataDirPresence } = require('../../src/shared/collector');
 const { normalizeDeviceRecord, aggregateDevices } = require('../../src/shared/usage');
+const { installSourceEnvGuard } = require('../helpers/sourceEnv');
+
+// Same reason as collectorLoadGuards.test.js: the presence assertions below stub
+// os.homedir(), but a developer machine with the real Antigravity CLI data (or
+// an exported HOME/USERPROFILE) still resolves the fixture root's real
+// counterpart and fails on a correct build.
+installSourceEnvGuard(test);
 
 test('statusFromSignals maps the three states from existing signals', () => {
   const status = statusFromSignals(

@@ -17,6 +17,14 @@ const SOURCE_ENV_KEYS = Object.freeze([
   // be cleared like the rest of this list.
   'HOME',
   'USERPROFILE',
+  // The Windows roaming/local profile roots are the same class of leak as HOME
+  // above: copilot's workspaceStorage, zed's native roots and cherry studio's
+  // app-data root all resolve through them, so a developer machine that has the
+  // corresponding editor installed makes a fixture-only home look populated.
+  // Clearing them is what the rest of this list is for; a case that needs one
+  // set assigns it inside the test, as cherryStudio.test.js already does.
+  'APPDATA',
+  'LOCALAPPDATA',
   'XDG_DATA_HOME',
   'COPILOT_OTEL_FILE_EXPORTER_PATH',
   'CODEX_HOME',

@@ -209,6 +209,7 @@ const CLIENT_SOURCE_CHECK_IDS = Object.freeze([
   'kiro-sessions',
   'liveagent-db',
   'lmstudio-server-logs',
+  'mcode-sessions',
   'mimocode-data',
   'mimocode-orca-data',
   'muse-sessions',
