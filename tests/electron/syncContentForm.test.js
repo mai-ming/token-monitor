@@ -315,9 +315,9 @@ test('unreachable and authentication errors disable unavailable controls and off
   assert.equal(f.get('customPricing').disabled, true);
 });
 
-test('five locales contain all sync content messages and matching parameters', () => {
+test('all bundled locales contain sync content messages and matching parameters', () => {
   const keys = Object.keys(i18n.MESSAGES.en).filter(key => key.startsWith('settings.sync.content.'));
-  for (const locale of ['en', 'zh-TW', 'zh-CN', 'ko', 'ja']) for (const key of keys) {
+  for (const locale of Object.keys(i18n.MESSAGES)) for (const key of keys) {
     assert.ok(Object.hasOwn(i18n.MESSAGES[locale], key), `${locale}: ${key}`);
     assert.ok(i18n.MESSAGES[locale][key].trim());
     assert.deepEqual(i18n.MESSAGES[locale][key].match(/\{\w+\}/g), i18n.MESSAGES.en[key].match(/\{\w+\}/g));
@@ -334,12 +334,12 @@ function sourceBetween(startAnchor, endAnchor) {
 }
 function functionSource(name, next) { return sourceBetween(`function ${name}(`, `\nfunction ${next}(`); }
 
-test('alias editor keeps its open values and base when a newer shared push arrives', async () => {
+test('alias batch editor keeps selected and manual drafts and base when a newer shared push arrives', async () => {
   const document = dom();
   let current = status({ enabled: { modelAliases: true } });
-  const state = { settings: { modelAliases: { a: 'original' }, modelAliasGrouping: 'off' } };
+  const state = { stats: { modelAliasSourceIds: ['b'] }, settings: { modelAliases: { a: 'original' }, modelAliasGrouping: 'off' } };
   const writes = [];
-  const context = { document, state, structuredClone, queueMicrotask,
+  const context = { document, state, structuredClone, queueMicrotask, customPricingFormApi: pricingApi,
     t: key => key, setAccountGroupExpanded() {},
     window: { TokenMonitorModelAliasForm: aliasApi, TokenMonitorSyncContentForm: api },
     syncContentForm: { base: () => api.snapshotBase(current) },
@@ -352,18 +352,32 @@ test('alias editor keeps its open values and base when a newer shared push arriv
   vm.createContext(context);
   vm.runInContext(`let modelAliasForm = null; let modelAliasEdit = null; let modelAliasSaveConflict = false; ${functionSource('setupModelAliasesUI', 'customPricingMeta')} setupModelAliasesUI();`, context);
   await document.getElementById('modelAliasesAddButton').click();
-  const alias = document.getElementById('modelAliasesAliasInput');
+  const alias = document.getElementById('modelAliasesAliasSelect');
   const canonical = document.getElementById('modelAliasesCanonicalInput');
-  alias.value = 'b'; canonical.value = 'user-value';
+  alias.value = 'model:b';
+  const targetSelect = document.getElementById('modelAliasesCanonicalSelect');
+  targetSelect.value = '__manual__';
+  await targetSelect.dispatch('change');
+  canonical.value = 'user-value';
+  await document.getElementById('modelAliasesAddSourceButton').click();
+  const extra = document.getElementById('modelAliasesMoreSources').children[0].children[0];
+  extra.children[1].value = '__manual__';
+  await extra.children[1].dispatch('change');
+  extra.children[2].value = 'c';
   current = status({ enabled: { modelAliases: true }, revisions: { modelAliases: 3, customPricing: 4 } });
   state.settings.modelAliases = { a: 'new-server-value', c: 'remote' };
   vm.runInContext('modelAliasForm.syncSettings();', context);
   await document.getElementById('modelAliasesSaveButton').click();
   assert.equal(writes[0].syncContentBase.revisions.modelAliases, 2);
-  assert.deepEqual(writes[0].modelAliases, { a: 'original', b: 'user-value' });
+  assert.deepEqual(writes[0].modelAliases, { a: 'original', b: 'user-value', c: 'user-value' });
+  assert.equal(alias.value, 'model:b');
   assert.equal(canonical.value, 'user-value');
+  assert.equal(extra.children[2].value, 'c');
   assert.equal(document.getElementById('modelAliasesForm').classList.contains('hidden'), false);
   assert.equal(document.getElementById('modelAliasesError').textContent, 'settings.sync.content.conflict');
+  await document.getElementById('modelAliasesSaveButton').click();
+  assert.deepEqual(writes[1], writes[0]);
+  assert.deepEqual(state.settings.modelAliases, { a: 'new-server-value', c: 'remote' });
 });
 
 test('pricing editor pins its whole collection and revision until the user closes it', async () => {
@@ -497,7 +511,7 @@ for (const action of ['edit', 'remove']) test(`alias ${action} uses the displaye
   let current = status({ enabled: { modelAliases: true } });
   const state = { settings: { modelAliases: { a: 'original', b: 'original' }, modelAliasGrouping: 'off' } };
   const writes = [];
-  const context = { document, state, structuredClone, queueMicrotask,
+  const context = { document, state, structuredClone, queueMicrotask, customPricingFormApi: pricingApi,
     t: key => key, setAccountGroupExpanded() {},
     window: { TokenMonitorModelAliasForm: aliasApi, TokenMonitorSyncContentForm: api },
     syncContentForm: { base: () => api.snapshotBase(current) },
@@ -516,6 +530,9 @@ for (const action of ['edit', 'remove']) test(`alias ${action} uses the displaye
   if (action === 'remove') await row.children[1].click();
   else {
     await row.children[0].click();
+    const targetSelect = document.getElementById('modelAliasesCanonicalSelect');
+    targetSelect.value = '__manual__';
+    await targetSelect.dispatch('change');
     document.getElementById('modelAliasesCanonicalInput').value = 'user-value';
     state.settings.modelAliases = { a: 'remote', c: 'new' };
     vm.runInContext('modelAliasForm.syncSettings();', context);
@@ -554,7 +571,7 @@ test('title-help headings reuse the existing localized deployment target labels'
   for (const target of ['Node', 'Worker']) {
     const key = `settings.sync.hubBuild.target${target}`;
     assert.match(html, new RegExp(`<dt data-i18n="${key.replaceAll('.', '\\.')}">`));
-    for (const locale of ['en', 'zh-TW', 'zh-CN', 'ko', 'ja']) assert.ok(i18n.MESSAGES[locale][key]);
+    for (const locale of Object.keys(i18n.MESSAGES)) assert.ok(i18n.MESSAGES[locale][key]);
   }
 });
 
@@ -591,7 +608,7 @@ for (const source of ['catch-up', 'server-adoption']) test(`alias ${source} pair
   });
   const form = api.createSyncContentForm({ document, bridge: { onSyncContentPush: callback => { push = callback; } },
     t: key => key, saveSettings: async () => {}, getSettings: () => state.settings });
-  context = { document, state, structuredClone, t: key => key, setAccountGroupExpanded() {},
+  context = { document, state, structuredClone, customPricingFormApi: pricingApi, t: key => key, setAccountGroupExpanded() {},
     window: { TokenMonitorModelAliasForm: aliasApi, TokenMonitorSyncContentForm: api }, syncContentForm: form,
     saveSettings: async (patch, base) => {
       await runtime.publishPatch(patch, base);

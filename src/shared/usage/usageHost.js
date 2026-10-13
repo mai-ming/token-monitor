@@ -40,6 +40,7 @@ const STOP_GRACE_MS = 5000;
 const TRANSFORMED = Object.freeze({ transformed: true });
 const CALLER_OPTION_KEYS = Object.freeze([
   'onUpdate',
+  'onSessionActivity',
   'onPreview',
   'onError',
   'onDiagnosticEvent',
@@ -98,6 +99,7 @@ function createUsageHostCoordinator(deps = {}) {
       archiveWritesYieldToAgent,
       liveSubprocesses: createLiveSubprocessTable(),
       callbacks: {
+        ...(typeof options.onSessionActivity === 'function' ? { activity: true } : {}),
         preview: typeof options.onPreview === 'function',
         error: typeof options.onError === 'function',
         logger: typeof options.logger === 'function'
@@ -173,6 +175,10 @@ function createUsageHostCoordinator(deps = {}) {
     function onMessage(message) {
       if (message?.diagnostics !== undefined) diagnostics = message.diagnostics;
       switch (message?.type) {
+        case 'activity':
+          if (stopped) return;
+          notify(options.onSessionActivity, message.patch);
+          return;
         case 'update':
           if (message.archive) archiveState = message.archive;
           notify(options.onUpdate, message.summary, message.reason, TRANSFORMED);
@@ -310,6 +316,12 @@ function createUsageHostCoordinator(deps = {}) {
       // it would be in-process, where the save itself waits behind that work.
       transformSettingsApplied: () => settingsApplied,
       refreshClient: (clientId, refreshOptions = {}) => call('refreshClient', [clientId, refreshOptions]),
+      setCodexDotsVisible(visible) {
+        // A failed worker must resume with the latest projection selection.
+        options.codexDotsVisible = visible !== false;
+        workerData.options.codexDotsVisible = visible !== false;
+        return call('setCodexDotsVisible', [visible]);
+      },
       tick: (reason = 'manual', tickOptions = {}) => call('tick', [reason, tickOptions]),
       // Synchronous like the collector's stop(): nothing this runtime reports
       // afterwards reaches the owner as a live update, because the device runtime

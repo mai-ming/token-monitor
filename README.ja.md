@@ -1,5 +1,5 @@
 <p align="right">
-   <a href="./README.md">EN</a> | <a href="./README.zh-CN.md">简</a> | <a href="./README.zh-TW.md">繁</a> | <a href="./README.ko.md">KO</a> | <strong>JA</strong>
+   <a href="./README.md">EN</a> | <a href="./README.zh-CN.md">简</a> | <a href="./README.zh-TW.md">繁</a> | <a href="./README.ko.md">KO</a> | <strong>JA</strong> | <a href="./README.pt-BR.md">PT</a>
 </p>
 <div align="center">
     <img src=".github/assets/app.png" alt="Token Monitor logo" width="120">
@@ -26,7 +26,7 @@
 
 ## Token Monitor とは
 
-Claude Code、Codex、Cursor、GitHub Copilot、Cherry Studio など 44+ 種類の AI コーディングツールのリアルタイムトークン使用量と AI ツール制限を表示するデスクトップウィジェットです。複数デバイス間のリアルタイム同期、使用履歴トレンド、ツール・デバイス・モデル・セッション・プロジェクト別の内訳表示に対応しています。
+Claude Code、Codex、Cursor、GitHub Copilot、Cherry Studio など 45+ 種類の AI コーディングツールのリアルタイムトークン使用量と AI ツール制限を表示するデスクトップウィジェットです。複数デバイス間のリアルタイム同期、使用履歴トレンド、ツール・デバイス・モデル・セッション・プロジェクト別の内訳表示に対応しています。
 
 ## 対応ツール
 
@@ -60,6 +60,7 @@ Token Monitor は **トークン使用量**、**アカウント制限**、**セ�
 | <img src=".github/assets/tools-icon/codebuddy.png" width="28" alt="CodeBuddy" /> | CodeBuddy | `~/.codebuddy/projects/` + IDE / VS Code 拡張ログ | ✅ | — | ✅ |
 | <img src=".github/assets/tools-icon/workbuddy.png" width="28" alt="WorkBuddy" /> | WorkBuddy | `~/.workbuddy/projects/`, `~/.workbuddy/workbuddy.db` | ✅ | ✅ | ✅ |
 | <img src=".github/assets/tools-icon/proma.png" width="28" alt="Proma" /> | Proma | `~/.proma/agent-sessions/*.jsonl` | ✅ | — | — |
+| <img src=".github/assets/tools-icon/catpaw.png" width="28" alt="CatPaw" /> | CatPaw | `<platform-app-data>/` (`catpaw-moon/`, `catpaw-overseas/`, `catpaw-memory-*.db`) | ✅ | — | — |
 | <img src=".github/assets/tools-icon/qoder.png" width="28" alt="Qoder" /> | Qoder | `~/.qoder-cn/projects/**/*.jsonl`, legacy `<platform-app-data>/QoderCN/SharedClientCache/cache/db/local.db`（中国版のみ） | ✅ | ✅ | — |
 | <img src=".github/assets/tools-icon/liveagent.png" width="28" alt="LiveAgent" /> | LiveAgent | `~/.liveagent/chat-history.sqlite3` | ✅ | — | — |
 | <img src=".github/assets/tools-icon/reasonix.png" width="28" alt="Reasonix" /> | Reasonix | `~/.reasonix/`（`stats/`、`sessions/`、`projects/*/sessions/`） | ✅ | — | — |
@@ -85,13 +86,14 @@ Token Monitor は **トークン使用量**、**アカウント制限**、**セ�
 <br>
 
 - 上記はデフォルトのパスです。Token Monitor は Tokscale と同じ環境変数の上書きに従います。`~/.local/share/` 配下は `$XDG_DATA_HOME`、ツール個別では `$CODEX_HOME`、`$GROK_HOME`、`$HERMES_HOME`、`$KIMI_CODE_HOME`、`$UNSLOTH_STUDIO_HOME`、`$LM_STUDIO_HOME`、`$DSH_HOME`、`$REASONIX_STATE_HOME`、`$REASONIX_HOME`、`$CLINE_*` などです。
+- CatPaw は既定で無効です。Settings → tools で有効にすると、macOS と Windows の中国版・海外版アシスタントのデータベースを読み取ります。パスと検証範囲は [CatPaw のデータソース](docs/providers/catpaw.md)を参照してください。
 - LM Studio の追跡対象は現在、サーバーログに記録される OpenAI 互換の `/v1/chat/completions` および `/v1/responses` リクエストのみです。LM Studio 内蔵 Chat UI から開始した会話と、ネイティブの `/api/v1/chat` リクエストは含まれません。
 - Unsloth Studio は `studio.db` から Studio のチャットとローカル API の推論使用量を追跡します。ローカル推論の API コストはゼロで、識別可能な従量課金プロバイダーには Tokscale の推定価格を使用します。学習トークンは含まれません。[Unsloth のデータソース](docs/providers/unsloth.md)も参照してください。
 - Devin はローカルの `sessions.db` から Devin CLI セッションを、`acp-events` ACP ログから Devin Desktop のエージェントセッションを追跡します。同じセッションが両方にある場合は CLI データベースが優先されます。Desktop の対象範囲は接続する ACP エージェントに依存します。ローカルに `usage_update` イベントを書き出すエージェントのみが集計対象で、Devin Desktop の既定の `devin-cloud` エージェントはサーバー側で計測されるため、既定の Desktop 構成では Desktop のトークンは報告されません。セッションタイトルとプロジェクト帰属は CLI データベースから取得します。詳しくは [Devin のデータソース](docs/providers/devin.md)を参照してください。
 - MiniMax Code は、CLI が書き込むローカルのセッション履歴（`~/.minimax` または `MINIMAX_DATA_DIR` / `MAVIS_DATA_DIR`、`~/.mavis` と `~/.minimax-<profile>` / `~/.mavis-<profile>` も含む）と、`tokscale headless mcode` でキャプチャした実行を読み取ります。両方にある同じターンは 1 回だけ集計されます。
 
 - Command Code の transcript には実際のトークン数やメッセージごとのモデル情報が含まれません。トークン使用量は transcript テキストから推定され、モデルの帰属と推定コストには各リクエストで過去に使用したモデルではなく、現在設定されているモデルが反映される場合があります。
-- Cursor キャッシュは Cursor のアカウント単位の使用量エクスポートから取得されるため、Cursor IDE、Cursor CLI、および Grok Bot の使用量が対象です。Token Monitor は Cursor デスクトップアプリでログイン済みのアカウントを自動検出し、設定から手動でアカウントを追加することもできます。古いキャッシュは自動的に再同期されますが、終了直後のセッションが Cursor ダッシュボードに届くまで数分かかる場合があるため、使用量は即時ではなく同期後に更新されます。
+- Cursor キャッシュは Cursor のアカウント単位の使用量エクスポートから取得されるため、Cursor IDE、Cursor CLI、および Grok Bot の使用量が対象です。Token Monitor は Cursor デスクトップアプリでログイン済みのアカウントを自動検出し、設定から手動でアカウントを追加することもできます。古いキャッシュは自動的に再同期されますが、終了直後のセッションが Cursor ダッシュボードに届くまで数分かかる場合があるため、最新の使用量の表示には引き続き遅延が生じることがあります。
 
 - Custom は1つの GET 残高エンドポイントから数値 JSON フィールドをマッピングします。OpenAI または Anthropic API 互換だけでは不十分です。
 
@@ -132,7 +134,7 @@ Qoder CN のトークン使用量は API ではなくアプリのローカルデ
 
 ### 使用量の追跡
 
-- **リアルタイムトークン追跡** — Claude Code、Codex、Cursor、GitHub Copilot、Antigravity、OpenCode など 36+ 種類の AI ツール、各ターンから数秒以内に UI 更新（全リストは上の表を参照）
+- **リアルタイムトークン追跡** — Claude Code、Codex、Cursor、GitHub Copilot、Antigravity、OpenCode など 37+ 種類の AI ツール、各ターンから数秒以内に UI 更新（全リストは上の表を参照）
 - **リアルタイムトークンレート** — 生成速度を `tok/s`、総消費を `tok/min` で表示する任意のライブ表示
 - **セッション別詳細** — セッションを開くとプロンプトごとのトークン、各応答のトークン分割・使用ツールまで展開（ローカル transcript/DB を必要時のみ読み込み、同期しない）
 - **キャッシュヒット統計** — ツール・モデルをクリックすると入力トークン（キャッシュ hit/miss）、出力トークン、ヒット率の詳細
@@ -157,6 +159,7 @@ Qoder CN のトークン使用量は API ではなくアプリのローカルデ
 - **マルチデバイス同期** — Hub 同期は Server-Sent Events で数秒以内に他のデバイスへ反映。iCloud Drive 同期は eventual consistency
 - **ローカルファースト** — 単一デバイスではサーバー不要
 - **セルフホスト同期** — ウィジェット内 hub、Node CLI hub、Cloudflare Worker
+- **Headless agent** — デスクトップアプリなしでサーバー、SSH ホスト、WSL の使用量を送信。[Headless agent](#headless-agent) を参照
 - **iOS ウィジェット** — Worker hub + Widgy、Scriptable
 - **プライバシー優先** — プロンプト、応答、ソースコード、ファイル内容はすべてデバイス内に保持
 
@@ -196,7 +199,7 @@ brew install --cask token-monitor
 
 ## マルチデバイス同期
 
-デバイス（および headless agent）で使う **マルチデバイス同期方式を 1 つ** 選びます。各デバイスでウィジェットを開き、**設定 → マルチデバイス同期** でモードを選択します。ウィジェットがこのデバイスの使用量を自動的にアップロードします。ウィジェットがないマシンでのみ `npm run agent` を実行してください。iCloud Drive は macOS ウィジェット専用で、headless agent には対応しません。
+デバイス（および headless agent）で使う **マルチデバイス同期方式を 1 つ** 選びます。各デバイスでウィジェットを開き、**設定 → マルチデバイス同期** でモードを選択します。ウィジェットがこのデバイスの使用量を自動的にアップロードします。ウィジェットがないマシンでのみ [headless agent](#headless-agent) を実行してください。iCloud Drive は macOS ウィジェット専用で、headless agent には対応しません。
 
 #### オプション A — ウィジェットから hub をホスト（最も簡単、CLI 不要）
 
@@ -233,6 +236,20 @@ npx wrangler deploy
 
 同じ Apple ID でサインインした各 Mac で、**設定 → マルチデバイス同期 → iCloud Drive** を選択します。任意で有効にする macOS 専用モードで、Token Monitor は iCloud Drive の `Token Monitor/sync-v1/` にデバイスごと・書き込み元ごとのアトミックスナップショットを保存し、各 Mac が有効なファイルを集計します。Token Monitor のサーバー、CloudKit、資格情報は使用せず、プロバイダーの API キー、Cookie、token はローカルに残ります。iCloud Drive は結果整合性のため、別の Mac の更新が表示されるまで時間がかかることがあり、壊れたファイルや一時的に見えないファイルで最後の正常な集計が消えることはありません。
 
+### Headless agent
+
+サーバー、SSH ホスト、WSL 内など、AI ツールは使うがデスクトップウィジェットを動かさないマシンでは headless agent を実行します。そのマシンの使用量を収集して hub（オプション A、B、C）に送信します。Node.js 22.15+ と git が必要です。
+
+```bash
+git clone https://github.com/Javis603/token-monitor.git
+cd token-monitor
+npm ci
+cp .env.example .env              # TOKEN_MONITOR_HUB_URL、TOKEN_MONITOR_SECRET、重複しない TOKEN_MONITOR_DEVICE_ID を設定
+npm run agent                     # 常駐実行
+```
+
+サービスとしての実行、更新、アンインストール、トラブルシューティングは [docs/headless-agent.md](docs/headless-agent.md) を参照してください。WSL 内の SQLite ベースのツールは [WSL SQLite セットアップ](docs/wsl-sqlite-setup.md) に従ってください。
+
 ## アプリデータ
 
 アプリの状態は OS のユーザーデータディレクトリに保存されます。アプリと一緒にそのフォルダを削除すると完全にアンインストールできます。
@@ -258,7 +275,7 @@ npm run pack         # インストーラーなしのアプリディレクトリ
 
 出力は `dist/` に生成されます。Windows と Linux は対象 OS 上で上記の対応する `dist:*` スクリプトを使います。macOS リリース版をパッケージングするには、この Mac に Developer ID Application の署名 ID が必要です。ローカル開発または未対応プラットフォームでは `npm start` を使ってください。
 
-ランタイムとパッケージングのスクリプトは、4 つの vendored 対象で pinned tokscale binary を明示的に確保します。それ以外のソースプラットフォームでは npm binary を使い、対応していない client をフィルタリングします。`npm install`、lint、テストではダウンロードしません。
+ランタイムとパッケージングのスクリプトは、vendored ビルドがある各対象で pinned tokscale binary を明示的に確保します。それ以外のソースプラットフォームでは npm binary を使い、対応していない client をフィルタリングします。`npm install`、lint、テストではダウンロードしません。
 
 ## 動作の仕組み
 
@@ -267,9 +284,9 @@ npm run pack         # インストーラーなしのアプリディレクトリ
     ウィジェット (Electron) ──▶ tokscale ──▶ ~/.claude, ~/.codex, $HERMES_HOME
 
 モード B — 同期（オプトイン、マルチデバイス）
-    デバイス A agent ──▶
-    デバイス B agent ──▶  hub  ──▶  任意のデバイスのウィジェット
-    デバイス C agent ──▶
+    デバイス A ウィジェット ──▶
+    デバイス B ウィジェット ──▶  hub  ──▶  任意のデバイスのウィジェット
+    デバイス C agent        ──▶
 ```
 
 ウィジェットは **設定 → マルチデバイス同期** に応じてローカル/同期を選択します。hub は `npm run hub`、Cloudflare Worker、またはウィジェット内 Host モードで実行できます。Hub Client/Host モードでは hub が SSE で集計統計をプッシュし、1 台の変更は通常数秒以内に他のデバイスに反映されます。iCloud Drive モードはファイルを直接同期する eventual consistency の方式で、反映に時間がかかる場合があります。
@@ -302,7 +319,7 @@ npm run pack         # インストーラーなしのアプリディレクトリ
 Token Monitor の設定は 2 か所にあります。日常利用に必要なのは前者だけです。
 
 - **ウィジェット (GUI)** — 右下の `⚙` ボタンで開きます。セクションは順に：一般（言語、ログイン時に起動、アップデート）、メイン画面（ホームモジュールと表示通貨）、ウィンドウ（ウィンドウ動作、メニューバー／フローティングバブルのレイアウト、トレイモード、ショートカット）、外観（テーマとツール別カラー）、収集（追跡ツール、収集間隔、削除されたセッション使用量を保持、データエクスポート）、AI ツール制限（プロバイダー選択、制限、認証情報）、サブスクリプション（アカウントごとの支払い額）、マルチデバイス同期。タイトルバーの `⇧` ボタンでウィンドウ動作を切り替えます。
-- **Headless agent と hub** — UI なし。プロジェクトルートの `.env`（`.env.example` をコピー）で設定します。優先順位は CLI フラグ → 環境変数 → 既定値。
+- **Headless agent と hub** — UI なし。プロジェクトルートの `.env`（`.env.example` をコピー）で設定します。優先順位は CLI フラグ → 環境変数 → 既定値。詳しくは [docs/configuration.md](docs/configuration.md#headless-agent--hub-env) を参照。
 
 すべての設定と環境変数の詳細は [設定リファレンス](docs/configuration.md) を参照してください。
 

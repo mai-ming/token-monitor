@@ -84,6 +84,7 @@
     { id: 'codebuddy', label: 'CodeBuddy' },
     { id: 'workbuddy', label: 'WorkBuddy' },
     { id: 'proma', label: 'Proma', forkOnly: true },
+    { id: 'catpaw', label: 'CatPaw', defaultTracked: false, forkOnly: true },
     { id: 'qodercn', label: 'Qoder CN', defaultTracked: false, forkOnly: true },
     // Deliberately NOT forkOnly: that flag means "parsed by Token Monitor's
     // tokscale fork", while liveagent is read in-process by this build's own

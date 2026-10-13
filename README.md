@@ -1,5 +1,5 @@
 <p align="right">
-   <strong>EN</strong> | <a href="./README.zh-CN.md">简</a> | <a href="./README.zh-TW.md">繁</a> | <a href="./README.ko.md">KO</a> | <a href="./README.ja.md">JA</a>
+   <strong>EN</strong> | <a href="./README.zh-CN.md">简</a> | <a href="./README.zh-TW.md">繁</a> | <a href="./README.ko.md">KO</a> | <a href="./README.ja.md">JA</a> | <a href="./README.pt-BR.md">PT</a>
 </p>
 <div align="center">
     <img src=".github/assets/app.png" alt="Token Monitor logo" width="120">
@@ -26,7 +26,7 @@
 
 ## What is Token Monitor?
 
-A desktop widget that shows live token usage and AI Tool Limits across 44+ AI coding tools — Claude Code, Codex, Cursor, GitHub Copilot, Cherry Studio, and more — with real-time multi-device sync, historical usage trends, and breakdowns by tool, device, model, session, or project.
+A desktop widget that shows live token usage and AI Tool Limits across 45+ AI coding tools — Claude Code, Codex, Cursor, GitHub Copilot, Cherry Studio, and more — with real-time multi-device sync, historical usage trends, and breakdowns by tool, device, model, session, or project.
 
 ## Supported Tools
 
@@ -60,6 +60,7 @@ Token Monitor supports token usage, account-limit checks, and session details se
 | <img src=".github/assets/tools-icon/codebuddy.png" width="28" alt="CodeBuddy" /> | CodeBuddy | `~/.codebuddy/projects/` + IDE / VS Code extension logs | ✅ | — | ✅ |
 | <img src=".github/assets/tools-icon/workbuddy.png" width="28" alt="WorkBuddy" /> | WorkBuddy | `~/.workbuddy/projects/`, `~/.workbuddy/workbuddy.db` | ✅ | ✅ | ✅ |
 | <img src=".github/assets/tools-icon/proma.png" width="28" alt="Proma" /> | Proma | `~/.proma/agent-sessions/*.jsonl` | ✅ | — | — |
+| <img src=".github/assets/tools-icon/catpaw.png" width="28" alt="CatPaw" /> | CatPaw | `<platform-app-data>/` (`catpaw-moon/`, `catpaw-overseas/`, `catpaw-memory-*.db`) | ✅ | — | — |
 | <img src=".github/assets/tools-icon/qoder.png" width="28" alt="Qoder" /> | Qoder | `~/.qoder-cn/projects/**/*.jsonl`, legacy `<platform-app-data>/QoderCN/SharedClientCache/cache/db/local.db` (CN only) | ✅ | ✅ | — |
 | <img src=".github/assets/tools-icon/liveagent.png" width="28" alt="LiveAgent" /> | LiveAgent | `~/.liveagent/chat-history.sqlite3` | ✅ | — | — |
 | <img src=".github/assets/tools-icon/reasonix.png" width="28" alt="Reasonix" /> | Reasonix | `~/.reasonix/` (`stats/`, `sessions/`, `projects/*/sessions/`) | ✅ | — | — |
@@ -85,13 +86,14 @@ Token Monitor supports token usage, account-limit checks, and session details se
 <br>
 
 - Paths above are the defaults. Token Monitor follows the same environment overrides Tokscale does — `$XDG_DATA_HOME` for the `~/.local/share/` roots, and per-tool variables such as `$CODEX_HOME`, `$GROK_HOME`, `$HERMES_HOME`, `$KIMI_CODE_HOME`, `$UNSLOTH_STUDIO_HOME`, `$LM_STUDIO_HOME`, `$DSH_HOME`, `$REASONIX_STATE_HOME`, `$REASONIX_HOME` and the `$CLINE_*` family.
+- CatPaw is off by default; enable it in Settings → tools. It reads domestic and overseas assistant databases on macOS and Windows. See [CatPaw source notes](docs/providers/catpaw.md) for paths and verification boundaries.
 - LM Studio tracking currently covers OpenAI-compatible `/v1/chat/completions` and `/v1/responses` requests recorded in server logs. Conversations started from LM Studio's built-in Chat UI and native `/api/v1/chat` requests are not included.
 - Unsloth Studio tracks inference usage from `studio.db`: Studio chats and its local API. Local inference has zero API cost; recognized metered providers use Tokscale's price estimates. Training tokens are not included. See [Unsloth source notes](docs/providers/unsloth.md).
 - Devin tracks Devin CLI sessions from the local `sessions.db` and Devin Desktop agent sessions from `acp-events` ACP logs; where both cover the same session the CLI database is authoritative. Desktop coverage depends on the connected ACP agent: only agents that write `usage_update` events locally are counted, and Devin Desktop's default `devin-cloud` agent meters its usage server-side, so a default Desktop setup reports no Desktop tokens. Session titles and project attribution come from the CLI database. See [Devin source notes](docs/providers/devin.md).
 - MiniMax Code reads the local session history the CLI writes, under `~/.minimax` or `MINIMAX_DATA_DIR` / `MAVIS_DATA_DIR` (also `~/.mavis` and `~/.minimax-<profile>` / `~/.mavis-<profile>`), plus runs captured with `tokscale headless mcode`; a turn found in both counts once.
 
 - Command Code transcripts do not contain actual token counts or per-message model metadata. Token usage is estimated from transcript text, while model attribution and derived cost may reflect the currently configured model rather than the model historically used for each request.
-- The Cursor cache comes from Cursor's account-level usage export, so it covers usage from Cursor IDE, Cursor CLI, and Grok Bot. Token Monitor automatically detects accounts signed in through the Cursor desktop app and also supports adding accounts manually in Settings. The cache re-syncs automatically when stale, but newly finished sessions can take a few minutes to reach Cursor's dashboard, so usage updates on sync rather than instantly.
+- The Cursor cache comes from Cursor's account-level usage export, so it covers usage from Cursor IDE, Cursor CLI, and Grok Bot. Token Monitor automatically detects accounts signed in through the Cursor desktop app and also supports adding accounts manually in Settings. The cache re-syncs automatically when stale, but newly finished sessions can take a few minutes to reach Cursor's dashboard, so recent usage may still appear with a delay.
 
 - Custom maps numeric JSON fields from one GET balance endpoint; OpenAI or Anthropic compatibility alone is not enough.
 - Qoder CN is off by default; enable it in Settings → tools. Current sessions are JSONL under `~/.qoder-cn/projects` (`TOKEN_MONITOR_QODER_CN_PROJECTS_PATH`, then `QODERCN_CONFIG_DIR/projects`); older builds used a SQLite database, overridable with `TOKEN_MONITOR_QODER_CN_DB_PATH`. An unreadable source keeps its last complete read. Legacy database sessions record only a project name, so they appear without a project. Plan-billed JSONL rows that report credits but no token counts are omitted from token totals; those credits stay in AI Tool Limits, and BYOK rows with measured tokens are counted. See [Qoder source notes](docs/providers/qodercn.md).
@@ -127,7 +129,7 @@ Most usage monitors are useful on the machine they run on. Token Monitor is buil
 
 ### Tracking usage
 
-- **Live token tracking** — Claude Code, Codex, Cursor, GitHub Copilot, Antigravity, OpenCode, and 36+ AI tools, with the UI updating within seconds of each turn (full list in the table above)
+- **Live token tracking** — Claude Code, Codex, Cursor, GitHub Copilot, Antigravity, OpenCode, and 37+ AI tools, with the UI updating within seconds of each turn (full list in the table above)
 - **Live token rate** — an optional live readout of generation speed in `tok/s` or total burn in `tok/min`
 - **Per-session detail** — open a session to see tokens per prompt, expandable to each reply's exact token split and tools used (read on-demand from local transcripts or databases, never synced)
 - **Cache hit statistics** — click any tool or model to expand a detailed breakdown of input tokens (cache hit vs miss), output tokens, and hit-rate percentages
@@ -152,6 +154,7 @@ Most usage monitors are useful on the machine they run on. Token Monitor is buil
 - **Real-time multi-device sync** — hub-backed sync uses Server-Sent Events to push updates to other devices within seconds; iCloud Drive sync is eventually consistent
 - **Local-first** — no servers needed for single-device use
 - **Self-hosted sync backend** — in-widget hub, Node CLI hub, or Cloudflare Worker
+- **Headless agent** — reports usage from servers, SSH hosts, and WSL without the desktop app; see [Headless agent](#headless-agent)
 - **iOS widget support** — Widgy and Scriptable through the Worker hub
 - **Privacy-first** — prompts, responses, source code, and file contents stay on your machine
 
@@ -191,7 +194,7 @@ Local mode is the default: launch the app and it starts tracking this device. No
 
 ## Multi-device sync
 
-Pick ONE multi-device sync backend for your devices (and any headless agents). On each device, open the widget and pick a mode under Settings → Multi-device Sync. The widget contributes this device's usage automatically; run `npm run agent` only on machines without a widget. iCloud Drive is a macOS-widget-only option and does not support headless agents.
+Pick ONE multi-device sync backend for your devices (and any headless agents). On each device, open the widget and pick a mode under Settings → Multi-device Sync. The widget contributes this device's usage automatically; run the [headless agent](#headless-agent) only on machines without a widget. iCloud Drive is a macOS-widget-only option and does not support headless agents.
 
 #### Option A — Host the hub from the widget (easiest, no CLI)
 
@@ -228,6 +231,20 @@ Paste the deployed URL into each device's widget at Settings → Multi-device Sy
 
 On each Mac signed into the same Apple ID, choose **iCloud Drive** in Settings → Multi-device Sync. This is an opt-in macOS-only path: Token Monitor writes one atomic snapshot per device and one subscription snapshot per writer under `iCloud Drive/Token Monitor/sync-v1/`, then each Mac aggregates the valid files locally. It uses no Token Monitor server, CloudKit, or credentials; provider API keys, cookies, and tokens stay local. iCloud Drive is eventually consistent, so another Mac may take a moment to appear or update, and a missing or malformed file never clears the last-good aggregate.
 
+### Headless agent
+
+Run the headless agent on servers, SSH hosts, or inside WSL — anywhere you use AI tools without the desktop widget. It collects usage on that machine and posts it to your hub (Option A, B, or C). Requires Node.js 22.15+ and git.
+
+```bash
+git clone https://github.com/Javis603/token-monitor.git
+cd token-monitor
+npm ci
+cp .env.example .env              # set TOKEN_MONITOR_HUB_URL, TOKEN_MONITOR_SECRET, and a unique TOKEN_MONITOR_DEVICE_ID
+npm run agent                     # run continuously
+```
+
+See [docs/headless-agent.md](docs/headless-agent.md) for running it as a service, updating, uninstalling, and troubleshooting. For SQLite-backed tools inside WSL, follow the [WSL SQLite setup](docs/wsl-sqlite-setup.md).
+
 ## App data
 
 App state lives in the OS user-data dir — delete it along with the app to fully uninstall.
@@ -253,7 +270,7 @@ npm run pack         # unpacked app dir (no installer), for quick local testing
 
 Output lands in `dist/`. Windows and Linux use the matching `dist:*` script above on the target OS. Packaging the macOS release build requires a local Developer ID Application signing identity; use `npm start` for local development or unsupported platforms.
 
-Runtime and packaging scripts explicitly ensure the pinned tokscale binary on the four vendored targets. Other source platforms keep the npm binary and filter clients it does not support; `npm install`, lint, and tests do not download it.
+Runtime and packaging scripts explicitly ensure the pinned tokscale binary on every target with a vendored build. Other source platforms keep the npm binary and filter clients it does not support; `npm install`, lint, and tests do not download it.
 
 ## How it works
 
@@ -262,9 +279,9 @@ Mode A — Local (default, no setup)
     widget (Electron) ──▶ tokscale ──▶ ~/.claude, ~/.codex, $HERMES_HOME
 
 Mode B — Sync (opt-in, multi-device)
-    device A agent ──▶
-    device B agent ──▶  hub  ──▶  widget on any device
-    device C agent ──▶
+    device A widget ──▶
+    device B widget ──▶  hub  ──▶  widget on any device
+    device C agent  ──▶
 ```
 
 The widget chooses local vs sync mode based on Settings → Multi-device Sync. The hub itself can run as a separate `npm run hub` process, a Cloudflare Worker, or directly inside one of the widgets (Host mode). In Hub Client and Host modes, the hub pushes aggregated stats to every connected widget over Server-Sent Events, so updates on one device usually appear on the others within a few seconds. iCloud Drive mode syncs files directly; propagation is eventually consistent and may take longer.
@@ -297,7 +314,7 @@ This archive only covers days Token Monitor has already observed; data deleted b
 There are two places to configure Token Monitor; day-to-day use only needs the first:
 
 - **Widget (GUI)** — click the `⚙` button in the bottom-right corner. Sections, in order: General (language, launch at login, updates), Main (Home modules and display currency), Window (window behavior, menu bar and floating-bubble layout, tray mode, shortcut), Appearance (theme and vendor colours), Collection (tracked tools, collection cadence, Preserve deleted session usage, data export), AI Tool Limits (provider selection, limits, and credentials), Subscriptions (what you pay per account), and Multi-device Sync. The `⇧` button in the title bar cycles the window behavior.
-- **Headless agent & hub** — no UI; configured with a `.env` file at the project root (copy from `.env.example`), precedence CLI flag → env var → built-in default.
+- **Headless agent & hub** — no UI; configured with a `.env` file at the project root (copy from `.env.example`), precedence CLI flag → env var → built-in default. See [docs/configuration.md](docs/configuration.md#headless-agent--hub-env).
 
 See the [configuration reference](docs/configuration.md) for every setting and all environment variables.
 

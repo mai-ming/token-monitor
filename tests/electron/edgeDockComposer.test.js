@@ -7,7 +7,7 @@ const test = require('node:test');
 
 const { addableLimitProviders, createEdgeDockComposer } = require('../../src/electron/renderer/edgeDock/composer');
 const itemsApi = require('../../src/electron/renderer/edgeDock/items');
-const { limitWindowLabel } = require('../../src/shared/limits/windowLabels');
+const { limitWindowLabel, mimoProductLabel } = require('../../src/shared/limits/windowLabels');
 
 const rendererDir = path.join(__dirname, '..', '..', 'src', 'electron', 'renderer');
 
@@ -33,6 +33,67 @@ class Element {
   setAttribute() {}
   contains(node) { return this === node || this.children.some((child) => child.contains(node)); }
 }
+
+function accountChoices(provider, rows, presentationApi) {
+  const root = new Element('div');
+  const composer = createEdgeDockComposer({
+    root, itemsApi, t: (key) => key,
+    presentationApi,
+    getSettings: () => ({ edgeDockItems: [{ type: 'limit', provider }] }),
+    getStats: () => ({ limits: { providers: rows } }), save: () => {},
+    providerLabel: (id) => id, providerColor: () => '#000000', hasProviderMark: () => false,
+    maskEmail: (email) => email, mimoProductLabel,
+    createRowDrag: () => ({ deferRender: () => false })
+  });
+  const all = (node) => [node, ...node.children.flatMap(all)];
+  composer.render();
+  all(root).find((node) => node.className === 'edge-dock-composer-item').listeners.click();
+  return {
+    composer,
+    names: () => all(root).filter((node) => node.className === 'edge-dock-composer-account-name').map((node) => node.textContent)
+  };
+}
+
+test('dock account choices distinguish MiMo products without changing sibling providers', () => {
+  const previousDocument = global.document;
+  global.document = { createElement: (tag) => new Element(tag), activeElement: null };
+  try {
+    const labels = (provider, rows) => accountChoices(provider, rows, { connectedLimitProviders: () => [provider] }).names();
+    assert.deepEqual(labels('mimo', [
+      { provider: 'mimo', accountKey: 'console', accountName: 'MiMo abcdef1', accountLabel: 'Console' },
+      { provider: 'mimo', accountKey: 'membership', accountName: 'MiMo abcdef1', accountLabel: 'Desktop Membership' }
+    ]), ['MiMo abcdef1 · Console', 'MiMo abcdef1 · Desktop Membership']);
+    assert.deepEqual(labels('mimo', [
+      { provider: 'mimo', accountKey: 'console', accountLabel: 'Console', planLabel: 'Pay-as-you-go' },
+      { provider: 'mimo', accountKey: 'membership', accountLabel: 'Desktop Membership', planLabel: 'Pro' }
+    ]), ['Console', 'Desktop Membership']);
+    assert.deepEqual(labels('codex', [
+      { provider: 'codex', accountKey: 'a', accountName: 'Account A', accountLabel: 'Console' },
+      { provider: 'codex', accountKey: 'b', accountName: 'Account B' }
+    ]), ['Account A', 'Account B']);
+    assert.deepEqual(labels('volcengine', [
+      { provider: 'volcengine', accountKey: 'coding', accountLabel: 'Coding Plan', planLabel: 'Coding Plan' },
+      { provider: 'volcengine', accountKey: 'agent', accountLabel: 'Agent Plan', planLabel: 'Agent Plan' }
+    ]), ['Coding Plan', 'Agent Plan']);
+  } finally {
+    global.document = previousDocument;
+  }
+});
+
+test('a MiMo product label change repaints its account choices', () => {
+  const previousDocument = global.document;
+  global.document = { createElement: (tag) => new Element(tag), activeElement: null };
+  try {
+    const rows = ['a', 'b'].map((accountKey) => ({ provider: 'mimo', accountKey, accountName: 'MiMo abcdef1', planLabel: 'Pro' }));
+    const { composer, names } = accountChoices('mimo', rows, {});
+    assert.deepEqual(names(), ['MiMo abcdef1', 'MiMo abcdef1']);
+    rows[1].accountLabel = 'Desktop Membership';
+    composer.render();
+    assert.deepEqual(names(), ['MiMo abcdef1', 'MiMo abcdef1 · Desktop Membership']);
+  } finally {
+    global.document = previousDocument;
+  }
+});
 
 test('a stats-only repaint keeps an open window picker and its labels match the Limits view', () => {
   const previousDocument = global.document;
@@ -228,4 +289,65 @@ test('a row hidden from the provider card is not offered as a new pin, but an ex
   } finally {
     global.document = previousDocument;
   }
+});
+
+test('Refresh can be added and removed without freezing automatic providers or changing readout order', () => {
+  const previousDocument = global.document;
+  global.document = { createElement: (tag) => new Element(tag), activeElement: null };
+  try {
+    const root = new Element('div');
+    const settings = { edgeDockItems: null };
+    const saves = [];
+    let providers = ['claude'];
+    const composer = createEdgeDockComposer({
+      root, itemsApi, t: (key) => key,
+      presentationApi: { connectedLimitProviders: () => providers },
+      getSettings: () => settings, getStats: () => ({}),
+      save: (patch) => { saves.push(patch); Object.assign(settings, patch); composer.render(); },
+      providerLabel: (id) => id, providerColor: () => '#fff', hasProviderMark: () => false,
+      createRowDrag: () => ({ deferRender: () => false })
+    });
+    const all = (node) => [node, ...node.children.flatMap(all)];
+    const find = (className) => all(root).find((node) => node.className === className);
+    const labels = () => all(root).filter((node) => node.className === 'edge-dock-composer-item').map((node) => node.title);
+    const openAdd = () => find('edge-dock-composer-add').listeners.click();
+    const refreshOption = () => all(root).find((node) => node.className === 'edge-dock-composer-menu-option'
+      && node.children.some((child) => child.textContent === 'settings.common.refresh'));
+    composer.render();
+    assert.deepEqual(labels(), ['claude']);
+    openAdd();
+    refreshOption().listeners.click();
+    assert.deepEqual(saves.at(-1), { edgeDockRefreshEnabled: true });
+    assert.equal(settings.edgeDockItems, null);
+    assert.deepEqual(labels(), ['claude', 'settings.common.refresh']);
+    assert.equal(find('edge-dock-composer-hint').textContent, 'settings.edgeDock.refreshNote');
+    const action = all(root).find((node) => node.title === 'settings.common.refresh');
+    assert.equal(action.dataset.itemId, undefined, 'fixed action stays outside drag ordering');
+    assert.equal(action.listeners.pointerdown, undefined);
+    providers = ['claude', 'codex'];
+    composer.render();
+    assert.deepEqual(labels(), ['claude', 'codex', 'settings.common.refresh']);
+    openAdd();
+    assert.equal(refreshOption(), undefined, 'an enabled action cannot be added twice');
+    all(root).find((node) => node.title === 'settings.common.refresh').listeners.click();
+    find('edge-dock-composer-remove').listeners.click();
+    assert.deepEqual(saves.at(-1), { edgeDockRefreshEnabled: false });
+    assert.equal(settings.edgeDockItems, null);
+    assert.deepEqual(labels(), ['claude', 'codex']);
+    openAdd();
+    assert.ok(refreshOption());
+    refreshOption().listeners.click();
+    find('edge-dock-composer-reset').listeners.click();
+    assert.equal(settings.edgeDockRefreshEnabled, false);
+    assert.equal(settings.edgeDockItems, null);
+    settings.edgeDockItems = [{ type: 'stat', metric: 'today' }, { type: 'stat', metric: 'month' }];
+    composer.render();
+    openAdd();
+    refreshOption().listeners.click();
+    assert.deepEqual(settings.edgeDockItems.map((item) => item.metric), ['today', 'month']);
+    all(root).find((node) => node.dataset.itemId === 'stat:today').listeners.click();
+    find('edge-dock-composer-remove').listeners.click();
+    assert.deepEqual(settings.edgeDockItems, [{ type: 'stat', metric: 'month' }]);
+    assert.equal(settings.edgeDockRefreshEnabled, true);
+  } finally { global.document = previousDocument; }
 });

@@ -22,6 +22,7 @@ const accountIdentityApi = window.TokenMonitorAccountIdentity;
 const glassRenderingApi = window.TokenMonitorGlassRendering;
 const limitPresentationApi = window.TokenMonitorLimitProviderPresentation;
 const limitWindowLabels = window.TokenMonitorLimitWindowLabels;
+const { mimoAccountGroups, mimoProductLabel } = limitWindowLabels;
 const limitWindowTextApi = window.TokenMonitorLimitWindowText;
 const limitResetMotionApi = window.TokenMonitorLimitResetMotion;
 const limitResetAnimatorApi = window.TokenMonitorLimitResetAnimator;
@@ -46,23 +47,32 @@ const overflowText = window.TokenMonitorOverflowText.create({
 const SESSION_STATE_GLYPHS = sessionLive.sessionStateMarkup({
   spin: 'edge-dock-session-spin',
   check: 'edge-dock-session-check',
-  idle: 'edge-dock-session-idle'
+  idle: 'edge-dock-session-idle',
+  waiting: 'edge-dock-session-waiting'
 });
 
 const BRAND_VENDOR_COLORS = { ...clientColors };
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const RING_RADIUS = 19;
+// Inset the thicker quota stroke so its outer edge stays within the 42px ring.
+const RING_RADIUS = 18.5;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 const DRAG_THRESHOLD_PX = 4;
 const BREAKDOWN_VISIBLE_ROWS = 6;
-// The period of `edge-dock-mark-breathe` in dock.css, which the running halo's phase
-// is taken modulo (see ringNode). A test holds the two numbers together.
-const BREATH_MS = 2600;
+// Keep the phase anchor in sync with edge-dock-running-spin in dock.css.
+const RUNNING_SPIN_MS = 1400;
+// Match the waiting pulse in dock.css. Keep its entry clock across rail
+// rebuilds so usage pushes and live-status renewals preserve the breathing phase.
+const WAITING_PULSE_MS = 2400;
+const waitingRingStarts = new Map();
 
 const root = document.getElementById('edgeDockRoot');
 const query = new URLSearchParams(window.location.search);
 const surface = query.get('surface') || 'rail';
 const reducedMotionMedia = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+const tokenNumberAnimationApi = window.TokenMonitorTokenNumberAnimation;
+const railNumberRollApi = window.TokenMonitorEdgeDockRailNumberRoll;
+const railNumberRoll = railNumberRollApi.create({ animation: tokenNumberAnimationApi });
+const markRoll = railNumberRollApi.mark;
 
 const state = {
   payload: null,
@@ -194,7 +204,6 @@ function readableColor(color) {
 // The provider's own colour, as the Limits view resolves it.
 function limitProviderColor(id) {
   if (id === 'factory') return clientColors.droid;
-  if (id === 'mimo') return clientColors.xiaomi;
   return clientColors[id] || clientColors.default;
 }
 
@@ -273,6 +282,22 @@ function compactCardTotal(value) {
 
 function formatCost(value) {
   return currencyApi.formatCurrencyFromUsd(value, appearance().currency || 'USD');
+}
+
+// Keep the known subtotal compact; the shared info tooltip explains its omissions.
+function usageCostNode(className, usage) {
+  const node = el('span', className);
+  node.classList.add('edge-dock-cost-reading');
+  const missing = Number(usage.unpricedTokens || 0);
+  node.append(el('span', '', missing > 0 && !(usage.costUsd > 0) ? '—' : formatCost(usage.costUsd)));
+  if (missing > 0) {
+    const info = el('span', 'usage-cost-info');
+    limitWindowsView.setDetailTooltip(info, [{ full: t('usage.excludedFromCost', {
+      tokens: formatCardTokens(missing)
+    }) }], { centered: true });
+    node.append(info);
+  }
+  return node;
 }
 
 // Low and critical colours are opt-in (edgeDockWarnColors): by default every
@@ -385,10 +410,13 @@ const limitWindowsView = limitWindowsViewApi.createLimitWindowsView({
   colorWithAlpha,
   applyBarScale,
   creditsAmount: balanceDisplay.creditsAmount,
+  creditsCurrency: balanceDisplay.creditsCurrency,
   creditsMeterPercent: balanceDisplay.creditsMeterPercent,
   isCreditsWindow: balanceDisplay.isCreditsWindow,
   spendWindow: balanceDisplay.spendWindow,
   limitWindowLabel: limitWindowLabels.limitWindowLabel,
+  mimoAccountGroups,
+  mimoProductLabel,
   limitWindowText: limitWindowTextApi.limitWindowText,
   accountIdentity: accountIdentityApi,
   accountControl: codexAccountControl,
@@ -447,22 +475,115 @@ function updateShape(payload) {
 
 // ---- Peek ----------------------------------------------------------------
 
+let refreshButton = null;
+let refreshBusy = false;
+let refreshResult = '';
+let refreshFeedbackTimer = null;
+
+function paintRefreshButton() {
+  if (!refreshButton) return;
+  const key = refreshBusy ? 'refreshButton.refreshing'
+    : refreshResult === 'success' ? 'refreshButton.refreshed'
+      : refreshResult === 'error' ? 'refreshButton.failed' : 'edgeDock.refreshLimits';
+  refreshButton.title = t(key);
+  refreshButton.setAttribute('aria-label', t(key));
+  refreshButton.setAttribute('aria-busy', String(refreshBusy));
+  refreshButton.disabled = refreshBusy || state.payload?.refreshable !== true;
+  refreshButton.dataset.state = refreshBusy ? 'busy' : refreshResult;
+}
+
+async function refreshDockLimits() {
+  if (refreshBusy || state.payload?.peekMode !== 'refresh') return;
+  clearTimeout(refreshFeedbackTimer);
+  refreshBusy = true;
+  refreshResult = '';
+  paintRefreshButton();
+  try {
+    const result = await bridge.refreshLimits();
+    refreshResult = result?.ok === true ? 'success' : 'error';
+  } catch {
+    refreshResult = 'error';
+  } finally {
+    refreshBusy = false;
+    paintRefreshButton();
+    refreshFeedbackTimer = setTimeout(() => {
+      refreshResult = '';
+      paintRefreshButton();
+    }, 1800);
+  }
+}
+
 function renderPeek(payload) {
   root.dataset.side = payload.side;
+  root.dataset.peekMode = payload.peekMode || 'handle';
+  // Sized to the window's own geometry rather than the viewport, in case AppKit
+  // clamped the window wider than asked and the extra pixels lie off-screen.
+  // The geometry is in window pixels and the page is zoomed to the dock's size.
+  const zoom = payload.zoom || 1;
+  root.style.width = `${(payload.shape?.width || 10) / zoom}px`;
+  root.style.height = `${(payload.shape?.height || 88) / zoom}px`;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (state.payload === payload) bridge.peekPainted?.(payload.peekMode || 'handle', payload.shape?.key);
+  }));
+  if (payload.peekMode === 'refresh') {
+    root.title = '';
+    root.classList.remove('is-handle-hidden');
+    if (!refreshButton) {
+      refreshButton = el('button', 'edge-dock-refresh');
+      refreshButton.type = 'button';
+      const icon = el('span', 'edge-dock-refresh-icon');
+      icon.setAttribute('aria-hidden', 'true');
+      refreshButton.append(icon);
+      refreshButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        void refreshDockLimits();
+      });
+    }
+    if (contentLayer.firstChild !== refreshButton) contentLayer.replaceChildren(refreshButton);
+    paintRefreshButton();
+    return;
+  }
   root.title = t('settings.display.edgeDock');
-  if (!contentLayer.firstChild) contentLayer.append(el('span', 'edge-dock-grip'));
+  // The handle is the silhouette itself (updateShape), tinted and outlined as the
+  // rail is; the refresh button is the only content this window carries.
+  if (contentLayer.firstChild) contentLayer.replaceChildren();
   // The handle's exit is a move, not a blink, so the withdrawn pose is held as a
-  // class and one transition carries it both ways (see the grip's rules). The class
-  // goes on in the same frame the grip is built, which is what keeps a page that
-  // loads with the rail already open from animating into a pose it starts in.
+  // class and one transition carries it both ways (see the handle's rules). The
+  // class goes on with the first render, which is what keeps a page that loads
+  // with the rail already open from animating into a pose it starts in.
   root.classList.toggle('is-handle-hidden', payload.peeking !== true);
 }
 
-if (surface === 'peek') root.addEventListener('click', () => bridge.click(null));
+if (surface === 'peek') root.addEventListener('click', () => {
+  if (state.payload?.peekMode !== 'refresh') bridge.click(null);
+});
+
+// On macOS the handle's window passes the pointer through with its moves still
+// forwarded here, so reporting them lets the main process take the pointer as
+// it reaches the handle rather than at its next cursor poll. The report carries
+// no position: the main process reads the cursor itself.
+if (surface === 'peek') {
+  const reportPointer = () => {
+    if (state.payload?.peekMode !== 'refresh') bridge.pointer();
+  };
+  document.addEventListener('mousemove', reportPointer);
+  document.documentElement.addEventListener('mouseleave', reportPointer);
+}
 
 // ---- Rail ----------------------------------------------------------------
 
-function ringNode(remainingPercent, color, mark) {
+function waitingRingStart(cellId, isWaiting) {
+  if (!isWaiting) {
+    waitingRingStarts.delete(cellId);
+    return null;
+  }
+  if (!waitingRingStarts.has(cellId)) {
+    waitingRingStarts.set(cellId, performance.now());
+  }
+  return waitingRingStarts.get(cellId);
+}
+
+function ringNode(remainingPercent, color, mark, waitingStartedAt = null) {
   const ring = el('div', 'edge-dock-ring');
   ring.style.setProperty('--ring-color', color);
   const svg = document.createElementNS(SVG_NS, 'svg');
@@ -488,17 +609,38 @@ function ringNode(remainingPercent, color, mark) {
   fill.setAttribute('stroke-dashoffset', String(RING_CIRCUMFERENCE * (1 - remaining / 100)));
   if (remainingPercent === null) fill.style.opacity = '0';
   svg.append(track, fill);
-  // The halo the running state breathes (see dock.css). It is always emitted and
-  // transparent until the cell is marked running, so what decides whether it shows is
-  // the cell's state alone. What it cannot carry is its own phase: renderRail rebuilds
-  // every cell from the payload on every push, so a fresh node restarts the breath at
-  // 0% each time - and the pushes are closest together exactly while a session is
-  // working, which is when this mark is worth anything. Anchoring the phase to the
-  // clock instead puts it somewhere a rebuild cannot reach, and the swap between the
-  // two nodes is invisible because they are at the same point of the same cycle.
-  const glow = el('span', 'edge-dock-ring-glow');
-  glow.style.animationDelay = `-${Date.now() % BREATH_MS}ms`;
-  ring.append(svg, glow, mark);
+  const waiting = document.createElementNS(SVG_NS, 'svg');
+  waiting.setAttribute('class', 'edge-dock-ring-waiting');
+  waiting.setAttribute('viewBox', '0 0 42 42');
+  waiting.setAttribute('aria-hidden', 'true');
+  const waitingCircle = document.createElementNS(SVG_NS, 'circle');
+  waitingCircle.setAttribute('cx', '21');
+  waitingCircle.setAttribute('cy', '21');
+  waitingCircle.setAttribute('r', '14');
+  waiting.append(waitingCircle);
+  if (waitingStartedAt !== null) {
+    const elapsed = Math.max(0, performance.now() - waitingStartedAt);
+    waiting.style.animationDelay = `-${elapsed % WAITING_PULSE_MS}ms`;
+  }
+  if (appearance().edgeDockRunningIndicatorEnabled === false) {
+    ring.append(svg, mark, waiting);
+    return ring;
+  }
+  // A separate inner arc reports work without moving the quota reading. Rail
+  // pushes rebuild these nodes, so anchor rotation to the clock to avoid restarting
+  // the spinner each time new usage arrives.
+  const spinner = document.createElementNS(SVG_NS, 'svg');
+  spinner.setAttribute('class', 'edge-dock-ring-spinner');
+  spinner.setAttribute('viewBox', '0 0 42 42');
+  spinner.setAttribute('aria-hidden', 'true');
+  spinner.style.animationDelay = `-${Date.now() % RUNNING_SPIN_MS}ms`;
+  const arc = document.createElementNS(SVG_NS, 'circle');
+  arc.setAttribute('cx', '21');
+  arc.setAttribute('cy', '21');
+  arc.setAttribute('r', '14');
+  arc.setAttribute('stroke-dasharray', `${7 * Math.PI} ${21 * Math.PI}`);
+  spinner.append(arc);
+  ring.append(svg, spinner, mark, waiting);
   return ring;
 }
 
@@ -506,26 +648,19 @@ function providerCellNode(cell) {
   const node = el('div', 'edge-dock-cell');
   node.dataset.status = cell.status;
   // Work in flight for this provider's tools, asked of the rows at paint time for
-  // the same reason the sessions cell asks: running expires on a clock, so a count
-  // frozen into the payload would keep the mark breathing after the work stopped.
-  // The glow rides the mark rather than the ring's arc on purpose. A running
-  // session is not proof that this quota is what is draining - the tokens may be
-  // billed to an API key or another endpoint entirely, which is the same reason
-  // local usage is not an adaptive-polling trigger - so it is a fact about the
-  // tool, not about the arc. Keeping it off the arc also keeps the signal's
-  // strength independent of how much quota is left (an arc-confined glow is
-  // faintest at 5%, which is exactly when it matters most), leaves the focused
-  // ring's own glow unambiguous, and stays readable on a stale cell, where the
-  // dimmed arc means "this number is not to be trusted" while the tool really is
-  // working. It is read from the cell's rows whatever the card draws of them: whether
-  // a tool is working is not the card's list, so hiding that list is not an off switch
-  // for this. An item that genuinely has no session rows never breathes.
+  // same reason the sessions cell asks: running expires on a clock. The inner
+  // spinner is independent of quota, since tokens may be billed to another
+  // endpoint. It also remains visible when the quota is empty or stale. Hiding
+  // the card's session list does not hide the running signal.
   const running = runningSessionSummary(cell.sessions).count;
+  const waiting = presentation.waitingSessionSummary(cell.sessions).count;
   if (running > 0) node.dataset.running = 'yes';
+  if (waiting > 0) node.dataset.waiting = 'yes';
   const color = providerColor(cell.provider);
   const shown = presentation.displayPercent(cell.remainingPercent, appearance().showLimitUsed === true);
   const value = el('span', 'edge-dock-value');
-  if (cell.credits && cell.credits.amount !== null && cell.credits.amount !== undefined) {
+  const hasCreditsAmount = Boolean(cell.credits) && cell.credits.amount !== null && cell.credits.amount !== undefined;
+  if (hasCreditsAmount) {
     value.textContent = balanceDisplay.formatCompactMoney(
       cell.credits.amount, cell.credits.currency, appearance().compactTokenUnits, state.locale
     );
@@ -535,7 +670,9 @@ function providerCellNode(cell) {
   // What a refill motion compares against to recognise a real reset on this
   // cell: the headline's account and window identities ride the key, so a
   // headline that swapped to another account or pool is never animated as one.
+  // The figure's roll keys on the same identity for the same reason.
   node.dataset.ringMotionKey = `${cell.id}\0${cell.headlineAccount || ''}\0${cell.headlineWindowKey || ''}`;
+  markRoll(value, `${node.dataset.ringMotionKey}:value`, hasCreditsAmount ? Number(cell.credits.amount) : shown);
   node.dataset.ringRemaining = cell.remainingPercent === null || cell.remainingPercent === undefined
     ? ''
     : String(cell.remainingPercent);
@@ -546,11 +683,12 @@ function providerCellNode(cell) {
   // Splitting the two lets a tight secondary window warn without turning the
   // headline into whichever window is lowest this minute.
   value.dataset.severity = displaySeverity(cell.severityPercent ?? cell.remainingPercent);
-  node.append(ringNode(cell.remainingPercent, color, markNode(cell.provider)), value);
-  // The halo is decorative and carries no text, so the state it announces is
+  node.append(ringNode(cell.remainingPercent, color, markNode(cell.provider), waitingRingStart(cell.id, waiting > 0)), value);
+  // The spinner is decorative and carries no text, so the state it announces is
   // spoken here instead, from the same reading it is drawn from.
   const spoken = [providerLabel(cell.provider), value.textContent];
   if (running > 0) spoken.push(t('edgeDock.runningCount', { count: running }));
+  if (waiting > 0) spoken.push(t('edgeDock.waitingCount', { count: waiting }));
   node.setAttribute('aria-label', spoken.join(' '));
   return node;
 }
@@ -573,7 +711,8 @@ function statLabel(metric) {
 // full-precision figure. The compact form goes through the same shared helper
 // as the tray and dashboard, so it follows the token unit system — a localized
 // user sees 萬/億 here too, never 億 beside K.
-function formatRailCost(value) {
+function formatRailCost(value, unpricedTokens) {
+  if (unpricedTokens > 0) return '—';
   const code = appearance().currency || 'USD';
   const amount = Math.abs(currencyApi.convertUsd(value, code));
   if (amount >= 10_000) {
@@ -606,7 +745,7 @@ function cellRateNode(cell) {
   // item's readout, which really does toggle rate mode on click while this cell
   // opens its card. A tooltip nobody can read is not worth five translations.
   node.append(
-    el('span', 'edge-dock-cell-rate-value', missing ? '—' : formatRate(cell.rate)),
+    markRoll(el('span', 'edge-dock-cell-rate-value', missing ? '—' : formatRate(cell.rate)), `${cell.id}:rate`, cell.rate),
     el('span', 'edge-dock-cell-rate-unit', t(cell.rateMode === 'burn' ? 'edgeDock.rate.burnUnit' : 'edgeDock.rate.speedUnit'))
   );
   return node;
@@ -650,7 +789,8 @@ function statCellNode(cell) {
   if (cell.metric === 'liveRate') {
     node.classList.toggle('is-idle', cell.idle === true);
     node.title = t('edgeDock.rate.switch');
-    node.append(el('span', 'edge-dock-stat-value', cell.rate === null || cell.rate === undefined ? '—' : formatRate(cell.rate)));
+    node.append(markRoll(el('span', 'edge-dock-stat-value', cell.rate === null || cell.rate === undefined ? '—' : formatRate(cell.rate)),
+      `${cell.id}:value`, cell.rate));
   } else if (cell.metric === presentation.SESSIONS_METRIC) {
     // Nothing running is a real reading, not a missing one, so the zero is
     // shown - muted, exactly as the live-rate cell mutes its own idle state.
@@ -658,7 +798,7 @@ function statCellNode(cell) {
     // running session the moment that session crosses the ten-minute window.
     const running = runningSessionSummary(cell.sessions).count;
     node.classList.toggle('is-idle', running === 0);
-    node.append(el('span', 'edge-dock-stat-value', String(running)));
+    node.append(markRoll(el('span', 'edge-dock-stat-value', String(running)), `${cell.id}:value`, running));
     // The third line is the item's own choice: the tools with work in flight, or
     // the live token rate. Rate mode keeps its line even with nothing running, so
     // the cell does not change height as work starts and stops.
@@ -673,8 +813,8 @@ function statCellNode(cell) {
     node.append(el('span', 'edge-dock-stat-value', '—'));
   } else {
     node.append(
-      el('span', 'edge-dock-stat-value', formatTokens(cell.totalTokens)),
-      el('span', 'edge-dock-stat-cost', formatRailCost(cell.costUsd))
+      markRoll(el('span', 'edge-dock-stat-value', formatTokens(cell.totalTokens)), `${cell.id}:value`, cell.totalTokens),
+      markRoll(el('span', 'edge-dock-stat-cost', formatRailCost(cell.costUsd, cell.unpricedTokens)), `${cell.id}:cost`, cell.costUsd)
     );
   }
   // The tool marks are decorative: the count beside them already says how many
@@ -814,8 +954,11 @@ function animateRingCompletion(ring, duration, startedAt = null) {
   animation.oncancel = remove;
 }
 
+// Returns the figures a refill counts up, including ones whose count-up starts
+// on the next frame, so nothing else animates them in the meantime.
 function animateRingResets(snapshot) {
-  if (!snapshot?.size || prefersReducedMotion()) return;
+  const owned = new Set();
+  if (!snapshot?.size || prefersReducedMotion()) return owned;
   const motions = [];
   for (const cell of railNode?.querySelectorAll('.edge-dock-cell[data-ring-motion-key]') || []) {
     const key = cell.dataset.ringMotionKey;
@@ -869,7 +1012,7 @@ function animateRingResets(snapshot) {
       }
     });
   }
-  if (!motions.length) return;
+  if (!motions.length) return owned;
   // The same batch rule the meters follow: refills land on full together,
   // paced by the longest member.
   const duration = limitResetMotionApi.groupDurationMs(
@@ -897,6 +1040,10 @@ function animateRingResets(snapshot) {
   if (pending.length) requestAnimationFrame((now) => {
     for (const entry of pending) startMotion(entry, now);
   });
+  for (const { cell, motion } of motions) {
+    if (motion.display) owned.add(cell.querySelector('.edge-dock-value'));
+  }
+  return owned;
 }
 
 // Snapping running effects to their end state when reduced motion turns on —
@@ -911,6 +1058,7 @@ function settleDockMotions() {
     el.textContent = `${Math.round(entry.target)}%`;
   }
   ringNumberAnimations.clear();
+  railNumberRoll.settle();
   cardResetAnimator.settle(contentLayer);
 }
 
@@ -957,7 +1105,8 @@ function renderRail(payload) {
   // slide belongs to the reveal rather than to every payload that follows it: the
   // count moves only on a real reveal, and this plays when it has moved on.
   const reveal = payload.reveal;
-  if (railReveal !== null && reveal !== railReveal) playRailReveal();
+  const revealing = railReveal !== null && reveal !== railReveal;
+  if (revealing) playRailReveal();
   railReveal = reveal;
   if (!railNode) {
     railNode = el('div', 'edge-dock-rail');
@@ -979,9 +1128,21 @@ function renderRail(payload) {
     node.classList.toggle('is-focused', payload.focusCellId === cell.id);
     nodes.push(node);
   });
+  const providerIds = new Set((payload.cells || []).filter((cell) => cell.kind !== 'stat').map((cell) => cell.id));
+  for (const id of waitingRingStarts.keys()) {
+    if (!providerIds.has(id)) waitingRingStarts.delete(id);
+  }
   const ringSnapshot = captureRingResetMotion();
+  const rollSnapshot = railNumberRoll.capture(railNode);
   railNode.replaceChildren(...nodes);
-  animateRingResets(ringSnapshot);
+  const refilling = animateRingResets(ringSnapshot);
+  // A retracted rail is not repainted, so a reveal shows the latest readings at
+  // once rather than rolling from ones left on screen minutes ago. A refill's
+  // count-up owns its figure.
+  if (!revealing && !prefersReducedMotion()
+    && tokenNumberAnimationApi.normalize(appearance().tokenNumberAnimation) === 'roll') {
+    railNumberRoll.play(railNode, rollSnapshot, { skip: (node) => refilling.has(node) });
+  }
 }
 
 let gesture = null;
@@ -1034,7 +1195,7 @@ function usageTile(label, usage) {
     el('span', 'edge-dock-usage-label', label),
     el('span', 'edge-dock-usage-tokens', usage ? formatBreakdownTokens(usage.tokens) : '—')
   );
-  if (usage) tile.append(el('span', 'edge-dock-usage-cost', formatCost(usage.costUsd)));
+  if (usage) tile.append(usageCostNode('edge-dock-usage-cost', usage));
   return tile;
 }
 
@@ -1060,6 +1221,7 @@ function relativeAgo(value) {
 // runs out. Absent for a session whose transcript states no window, which is the
 // normal case rather than an error.
 function contextNode(session) {
+  session = session.groupRows?.[0] || session;
   const context = sessionLive.sessionActivityState(session) !== 'idle' ? session?.context : null;
   if (!context) return null;
   const showUsed = appearance().sessionContextMetric !== 'remaining';
@@ -1086,7 +1248,7 @@ const lastActivityBySession = new Map();
 // drops out of the list can never flare again, so holding it would leak one
 // entry per session for the life of the process.
 function pruneActivity(sessions) {
-  const live = new Set(sessions.map(sessionKey));
+  const live = new Set([...sessions, ...presentation.sessionMembers(sessions)].map(sessionKey));
   for (const key of lastActivityBySession.keys()) {
     if (!live.has(key)) lastActivityBySession.delete(key);
   }
@@ -1112,6 +1274,7 @@ function stateMark(session, key, state) {
   dot.innerHTML = SESSION_STATE_GLYPHS;
   dot.dataset.state = state;
   if (state === 'running') dot.title = t('session.running');
+  else if (state === 'waiting') dot.title = t('session.waiting');
   else if (state === 'ended') dot.title = t('session.finished');
   const previous = lastActivityBySession.get(key) || 0;
   const next = Date.parse(session.lastUsedAt || '') || 0;
@@ -1125,13 +1288,29 @@ function stateMark(session, key, state) {
 }
 
 function sessionsNode(sessions) {
-  if (!Array.isArray(sessions) || !sessions.length) return null;
+  sessions = Array.isArray(sessions) ? sessions : [];
   pruneActivity(sessions);
+  pruneSessionGroupExpansion(sessions);
+  if (!sessions.length) return null;
   // A provider card's rows are all one client, so their marks would only repeat
   // the card's own header; the standalone Sessions card lists every client and
   // names each row's tool (see sessionsCard).
   const node = sessionsContainer(sessions, { title: t('edgeDock.sessions'), showClientMark: false });
   return node;
+}
+
+const expandedSessionGroups = new Set();
+
+function sessionGroupExpansionKey(key) {
+  return `${state.payload?.cell?.id || ''}|${key}`;
+}
+
+function pruneSessionGroupExpansion(sessions) {
+  const prefix = sessionGroupExpansionKey('');
+  const live = new Set(sessions.filter(row => row.groupRows).map(row => sessionGroupExpansionKey(sessionKey(row))));
+  for (const key of expandedSessionGroups) {
+    if (key.startsWith(prefix) && !live.has(key)) expandedSessionGroups.delete(key);
+  }
 }
 
 function sessionsContainer(sessions, options = {}) {
@@ -1140,8 +1319,8 @@ function sessionsContainer(sessions, options = {}) {
   // stop reading as running (and must stop being counted).
   // One derivation serves both the count and the marks, from the same shared
   // predicate the Sessions list uses.
-  const stateByKey = new Map(sessions.map((session) => [sessionKey(session), sessionLive.sessionActivityState(session)]));
-  const liveCount = [...stateByKey.values()].filter((state) => state === 'running').length;
+  const stateByKey = new Map(sessions.map((session) => [sessionKey(session), presentation.sessionActivityState(session)]));
+  const liveCount = [...stateByKey.values()].filter((activityState) => activityState === 'running').length;
   const node = el('div', 'edge-dock-sessions');
   // The feathered rule above a section separates it from a quota row. A nested
   // list already sits under its group's own header, so it draws none: one line
@@ -1160,10 +1339,10 @@ function sessionsContainer(sessions, options = {}) {
   if (head.childElementCount) node.append(head);
   const list = el('div', 'edge-dock-session-list');
   for (const session of sessions) {
-    const row = el('div', 'edge-dock-session');
+    const row = el(session.groupRows ? 'summary' : 'div', 'edge-dock-session');
     const key = sessionKey(session);
-    const state = stateByKey.get(key) || 'idle';
-    row.classList.toggle('is-running', state === 'running');
+    const activityState = stateByKey.get(key) || 'idle';
+    row.classList.toggle('is-running', activityState === 'running');
     const name = session.title || session.projectLabel || String(session.sessionId || '').slice(0, 12) || '—';
     const nameNode = el('span', 'edge-dock-session-name');
     // The row's tool, as the same mark the rest of the widget draws for it. A
@@ -1179,7 +1358,7 @@ function sessionsContainer(sessions, options = {}) {
     // The dot sits with the name rather than recolouring it: a green title
     // made the row read as a different kind of row, and the colour carried no
     // more information than the dot does.
-    nameNode.append(stateMark(session, key, state));
+    nameNode.append(stateMark(session, key, activityState));
     const title = el('span', 'edge-dock-session-title', name);
     title.dataset.overflowKey = key;
     overflowText.bind(title);
@@ -1188,13 +1367,16 @@ function sessionsContainer(sessions, options = {}) {
     // translated state is rendered as real text for assistive technology. It
     // cannot go on the row itself: a plain `div` has the generic role and
     // Chromium ignores an accessible name set on one.
-    const stateLabel = state === 'running' ? t('session.running')
-      : state === 'ended' ? t('session.finished')
+    const stateLabel = activityState === 'waiting' ? t('session.waiting') : activityState === 'running' ? t('session.running')
+      : activityState === 'ended' ? t('session.finished')
         : t('session.idle');
     nameNode.append(el('span', 'sr-only', ` ${stateLabel}`));
-    // The meta line carries model, age, and (when the transcript stated one)
-    // the context reading, so nothing the row showed before is displaced.
+    // Membership belongs with model and age, leaving the title its full column.
     const meta = el('span', 'edge-dock-session-meta');
+    const description = el('span', 'edge-dock-session-description');
+    const memberLabel = session.groupRows && (!session.subagentGroup || session.subagentCount > 0)
+      ? (session.subagentGroup ? t('sessions.subagentCount', { count: session.subagentCount })
+        : t('sessions.grokBotCount', { count: session.groupRows.length })) : '';
     // The model label is composed by the Sessions list's own helper, so a
     // multi-model session reads "N models" here exactly as it does there —
     // projecting only the top model showed a different name than the list's
@@ -1206,19 +1388,25 @@ function sessionsContainer(sessions, options = {}) {
       unattributedLabel: t('dashboard.tooltip.unclassified'),
       formatTokens: formatBreakdownTokens
     });
-    if (modelLabel && modelEntries.length > 1) {
-      const models = el('span', 'session-models', modelLabel);
-      limitWindowsView.setDetailTooltip(models, modelEntries);
-      meta.append(models);
-      if (age) meta.append(document.createTextNode(` · ${age}`));
-    } else {
-      meta.append(document.createTextNode([modelLabel, age].filter(Boolean).join(' · ')));
+    if (modelLabel) {
+      if (modelEntries.length > 1) {
+        const models = el('span', 'session-models', modelLabel);
+        limitWindowsView.setDetailTooltip(models, modelEntries);
+        description.append(models);
+      } else description.append(document.createTextNode(modelLabel));
     }
-    const context = contextNode(session);
-    const cache = context ? null : sessionLive.sessionPromptCacheForRow(session);
+    if (memberLabel) {
+      if (modelLabel) description.append(document.createTextNode(' · '));
+      description.append(el('span', 'edge-dock-session-member-count', memberLabel));
+    }
+    if (age) description.append(document.createTextNode(`${memberLabel || modelLabel ? ' · ' : ''}${age}`));
+    meta.append(description);
+    const statusRow = session.groupRows?.[0] || session;
+    const context = contextNode(statusRow);
+    const cache = context ? null : sessionLive.sessionPromptCacheForRow(statusRow);
     if (cache) {
       const badge = el('span', 'edge-dock-session-cache', t('session.cacheEstimate', { minutes: cache.minutes }));
-      sessionRowsApi.setSessionTooltip(badge, session, cache, t, limitWindowsView);
+      sessionRowsApi.setSessionTooltip(badge, statusRow, cache, t, limitWindowsView);
       meta.append(badge);
     }
     if (context) meta.append(context);
@@ -1227,7 +1415,25 @@ function sessionsContainer(sessions, options = {}) {
       el('span', 'edge-dock-session-tokens', formatBreakdownTokens(session.totalTokens)),
       meta
     );
-    list.append(row);
+    if (session.groupRows) {
+      const family = el('details', 'edge-dock-session-family');
+      const expansionKey = sessionGroupExpansionKey(key);
+      family.open = expandedSessionGroups.has(expansionKey);
+      row.dataset.sessionGroupKey = key;
+      row.setAttribute('role', 'button');
+      row.setAttribute('aria-expanded', String(family.open));
+      family.addEventListener('toggle', () => {
+        if (!family.isConnected || family.open === expandedSessionGroups.has(expansionKey)) return;
+        row.setAttribute('aria-expanded', String(family.open));
+        if (family.open) expandedSessionGroups.add(expansionKey);
+        else expandedSessionGroups.delete(expansionKey);
+        // Reuse the existing measured-size handshake so expansion fits the
+        // native bubble window as well as this document.
+        if (state.payload?.cell && surface === 'bubble') renderBubble(state.payload);
+      });
+      family.append(row, sessionsContainer(session.groupRows, { showClientMark: true, showCount: false, separator: false }));
+      list.append(family);
+    } else list.append(row);
   }
   node.append(list);
   return node;
@@ -1363,7 +1569,7 @@ function statCard(cell) {
     compactNode.setAttribute('aria-hidden', 'true');
     totalRow.append(compactNode);
   }
-  total.append(totalRow, el('span', '', formatCost(cell.costUsd)));
+  total.append(totalRow, usageCostNode('', cell));
   card.append(total);
   if (!cell.clients.length && !(cell.models || []).length) {
     card.append(el('div', 'edge-dock-note', t('edgeDock.noUsagePeriod')));
@@ -1458,6 +1664,7 @@ function sessionsCard(cell, card, head) {
   // is merely quiet keeps its flare entry, so a session that starts running again flares
   // on its next write rather than being treated as newly seen.
   pruneActivity(pushed);
+  pruneSessionGroupExpansion(pushed);
   // The count lives in exactly one place per layout. Grouped, each section states
   // its own, and a card total above them printed the very same number whenever one
   // tool happened to be the only one running. Ungrouped there are no section heads,
@@ -1520,12 +1727,19 @@ function commitCard(card, cellId) {
   const previous = contentLayer.querySelector('.edge-dock-card');
   const sameCard = previous?.dataset.cellId === cellId
     && previous?.dataset.breakdownMode === card.dataset.breakdownMode;
-  const scrollTop = sameCard ? previous.querySelector(CARD_SCROLL_SELECTOR)?.scrollTop || 0 : 0;
+  const scrollLists = (node) => [...node.querySelectorAll(CARD_SCROLL_SELECTOR)]
+    .filter(list => !list.closest('.edge-dock-session-family'));
+  const scrollTops = sameCard ? scrollLists(previous).map(list => list.scrollTop) : [];
+  const focusedGroup = sameCard ? document.activeElement?.dataset?.sessionGroupKey : null;
   const resetSnapshot = cardResetAnimator.capture(contentLayer);
   contentLayer.replaceChildren(card);
   overflowText.refresh();
-  const list = card.querySelector(CARD_SCROLL_SELECTOR);
-  if (list) list.scrollTop = scrollTop;
+  if (focusedGroup) {
+    const summary = [...card.querySelectorAll('summary[data-session-group-key]')]
+      .find(node => node.dataset.sessionGroupKey === focusedGroup);
+    summary?.focus({ preventScroll: true });
+  }
+  scrollLists(card).forEach((list, index) => { list.scrollTop = scrollTops[index] || 0; });
   // Measure reading targets only after mounting and restoring their scroll position.
   if (sameCard) overflowText.preserveReading(previous, card);
   cardResetAnimator.animate(card, resetSnapshot);
@@ -1572,7 +1786,7 @@ function renderBubble(payload) {
   stagingLayer.replaceChildren(card);
   fitCardTotal(card);
   clampBreakdownList(card);
-  const height = Math.ceil(card.getBoundingClientRect().height);
+  const height = Math.min(Math.ceil(card.getBoundingClientRect().height), payload.maxCardHeight || Infinity);
   if (payload.placed?.cellId === cell.id && payload.placed.height === height) {
     commitCard(card, cell.id);
   } else {
@@ -1614,7 +1828,7 @@ bridge.onRender(render);
 // so this costs no IPC and asks the main process for nothing.
 // A cell whose reading moves with the sessions clock. Asked by "does it carry
 // rows" rather than by metric: the sessions item is not the only cell that reads
-// them any more - a provider cell breathes its mark while that tool is working,
+// them any more - a provider cell spins its inner arc while that tool is working,
 // and that has to stop on the same clock the count does.
 function cellReadsSessions(cell) {
   return Array.isArray(cell?.sessions) && cell.sessions.length > 0;
@@ -1658,7 +1872,7 @@ function sessionsExpiryDelayMs() {
     // surface in turn. Only an expiry still ahead can shorten a wait; a stale one would
     // otherwise pin the delay to the floor and re-arm on every pass.
     const runningExpiry = presentation.nextRunningExpiryAt(cell.sessions, now);
-    const cacheExpiry = sessionLive.nextSessionStatusChangeAt(cell.sessions, now);
+    const cacheExpiry = sessionLive.nextSessionStatusChangeAt(presentation.sessionMembers(cell.sessions), now);
     const expiresAt = [runningExpiry, cacheExpiry].filter((at) => at > now).sort((a, b) => a - b)[0] || 0;
     if (expiresAt > now && (!soonest || expiresAt < soonest)) soonest = expiresAt;
   }

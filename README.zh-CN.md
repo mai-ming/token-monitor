@@ -1,5 +1,5 @@
 <p align="right">
-   <a href="./README.md">EN</a> | <strong>简</strong> | <a href="./README.zh-TW.md">繁</a> | <a href="./README.ko.md">KO</a> | <a href="./README.ja.md">JA</a>
+   <a href="./README.md">EN</a> | <strong>简</strong> | <a href="./README.zh-TW.md">繁</a> | <a href="./README.ko.md">KO</a> | <a href="./README.ja.md">JA</a> | <a href="./README.pt-BR.md">PT</a>
 </p>
 <div align="center">
     <img src=".github/assets/app.png" alt="Token Monitor logo" width="120">
@@ -26,7 +26,7 @@
 
 ## Token Monitor 是什么？
 
-一款桌面小部件，实时显示 Claude Code、Codex、Cursor、GitHub Copilot、Cherry Studio 等 44+ 种 AI 编程工具的 Token 用量与 AI 工具额度，具备实时多设备同步与历史使用趋势功能，并支持按工具、设备、模型、session 或项目分项显示。
+一款桌面小部件，实时显示 Claude Code、Codex、Cursor、GitHub Copilot、Cherry Studio 等 45+ 种 AI 编程工具的 Token 用量与 AI 工具额度，具备实时多设备同步与历史使用趋势功能，并支持按工具、设备、模型、session 或项目分项显示。
 
 ## 支持的工具
 
@@ -60,6 +60,7 @@ Token Monitor 对 Token 用量、账户额度和 session 明细分别支持：
 | <img src=".github/assets/tools-icon/codebuddy.png" width="28" alt="CodeBuddy" /> | CodeBuddy | `~/.codebuddy/projects/` 与 IDE / VS Code 扩展日志 | ✅ | — | ✅ |
 | <img src=".github/assets/tools-icon/workbuddy.png" width="28" alt="WorkBuddy" /> | WorkBuddy | `~/.workbuddy/projects/`、`~/.workbuddy/workbuddy.db` | ✅ | ✅ | ✅ |
 | <img src=".github/assets/tools-icon/proma.png" width="28" alt="Proma" /> | Proma | `~/.proma/agent-sessions/*.jsonl` | ✅ | — | — |
+| <img src=".github/assets/tools-icon/catpaw.png" width="28" alt="CatPaw" /> | CatPaw | `<platform-app-data>/` (`catpaw-moon/`, `catpaw-overseas/`, `catpaw-memory-*.db`) | ✅ | — | — |
 | <img src=".github/assets/tools-icon/qoder.png" width="28" alt="Qoder" /> | Qoder | `~/.qoder-cn/projects/**/*.jsonl`, legacy `<platform-app-data>/QoderCN/SharedClientCache/cache/db/local.db`（仅限中国版） | ✅ | ✅ | — |
 | <img src=".github/assets/tools-icon/liveagent.png" width="28" alt="LiveAgent" /> | LiveAgent | `~/.liveagent/chat-history.sqlite3` | ✅ | — | — |
 | <img src=".github/assets/tools-icon/reasonix.png" width="28" alt="Reasonix" /> | Reasonix | `~/.reasonix/`（`stats/`、`sessions/`、`projects/*/sessions/`） | ✅ | — | — |
@@ -85,13 +86,14 @@ Token Monitor 对 Token 用量、账户额度和 session 明细分别支持：
 <br>
 
 - 上表为默认路径。Token Monitor 与 Tokscale 遵循相同的环境变量覆盖：`~/.local/share/` 下的路径跟随 `$XDG_DATA_HOME`，各工具另有 `$CODEX_HOME`、`$GROK_HOME`、`$HERMES_HOME`、`$KIMI_CODE_HOME`、`$UNSLOTH_STUDIO_HOME`、`$LM_STUDIO_HOME`、`$DSH_HOME`、`$REASONIX_STATE_HOME`、`$REASONIX_HOME` 以及 `$CLINE_*` 系列。
+- CatPaw 默认关闭，可在 Settings → tools 中启用；读取 macOS 和 Windows 上国内版与外区版助手的数据库。路径与验证边界见 [CatPaw 数据来源说明](docs/providers/catpaw.md)。
 - LM Studio 追踪目前仅涵盖服务器日志中记录的 OpenAI 兼容 `/v1/chat/completions` 和 `/v1/responses` 请求。通过 LM Studio 内置 Chat 界面发起的对话，以及原生 `/api/v1/chat` 请求均不包括在内。
 - Unsloth Studio 从 `studio.db` 追踪 Studio 对话与本地 API 的推理用量。本地推理的 API 费用为零；可识别的按量计费供应商使用 Tokscale 的价格估算。不包括训练 Token。详见 [Unsloth 数据来源说明](docs/providers/unsloth.md)。
 - Devin 从本地 `sessions.db` 追踪 Devin CLI 会话，并从 `acp-events` ACP 日志追踪 Devin Desktop 代理会话；同一 session 两边都有数据时以 CLI 数据库为准。Desktop 的覆盖范围取决于连接的 ACP 代理：只有会在本地写入 `usage_update` 事件的代理才会计入，而 Devin Desktop 默认的 `devin-cloud` 代理在服务端计量，因此默认的 Desktop 配置不会报告 Desktop token。session 标题与项目归属取自 CLI 数据库。详见 [Devin 数据来源说明](docs/providers/devin.md)。
 - MiniMax Code 读取 CLI 写入的本地会话记录，位于 `~/.minimax` 或 `MINIMAX_DATA_DIR` / `MAVIS_DATA_DIR`（也包括 `~/.mavis` 与 `~/.minimax-<profile>` / `~/.mavis-<profile>`），并加上通过 `tokscale headless mcode` 捕获的运行；两边都有的同一轮只计一次。
 
 - Command Code transcript 不包含实际 Token 数或每条消息的模型信息。Token 用量根据 transcript 文本估算；模型归属与推算成本可能反映当前配置的模型，而不是每次请求当时实际使用的模型。
-- Cursor 缓存来自 Cursor 的账号层级用量导出，因此涵盖 Cursor IDE、Cursor CLI 与 Grok Bot 的用量。Token Monitor 会自动检测 Cursor 桌面版已登录的账号，也可在设置中手动新增。缓存过期时会自动重新同步，但刚完成的 session 可能需要几分钟才会出现在 Cursor 控制台，因此用量会在同步后更新，而非即时显示。
+- Cursor 缓存来自 Cursor 的账号层级用量导出，因此涵盖 Cursor IDE、Cursor CLI 与 Grok Bot 的用量。Token Monitor 会自动检测 Cursor 桌面版已登录的账号，也可在设置中手动新增。缓存过期时会自动重新同步，但刚完成的 session 可能需要几分钟才会出现在 Cursor 控制台，因此最新用量仍可能延迟显示。
 
 - Custom 会从一个 GET 余额端点映射数值 JSON 字段；仅兼容 OpenAI 或 Anthropic API 并不足够。
 
@@ -132,7 +134,7 @@ Qoder CN 的 Token 用量来自应用本地数据，而非 API —— 在 Settin
 
 ### 用量追踪
 
-- **实时 Token 追踪**：Claude Code、Codex、Cursor、GitHub Copilot、Antigravity、OpenCode 等 36+ 种 AI 工具，每轮对话后 UI 在数秒内刷新（完整列表见上方表格）
+- **实时 Token 追踪**：Claude Code、Codex、Cursor、GitHub Copilot、Antigravity、OpenCode 等 37+ 种 AI 工具，每轮对话后 UI 在数秒内刷新（完整列表见上方表格）
 - **实时 Token 速率**：可选显示的实时读数，以 `tok/s` 显示生成速度或以 `tok/min` 显示总消耗
 - **单个 session 明细**：点进某个 session，可看每条提问的 Token 消耗，并展开查看每次回复的 Token 拆分与用到的工具（打开时才实时读取本机 transcript 或数据库，绝不同步）
 - **缓存命中统计**：点击任何工具或模型，展开查看输入 Token（缓存命中与未命中）、输出 Token 的详细分类及命中率百分比
@@ -157,6 +159,7 @@ Qoder CN 的 Token 用量来自应用本地数据，而非 API —— 在 Settin
 - **多设备同步**：Hub 同步通过 Server-Sent Events 在数秒内推送更新；iCloud Drive 同步具有最终一致性
 - **本地优先**：单设备使用完全无需服务器
 - **自托管同步后端**：小部件内 hub、Node CLI hub 或 Cloudflare Worker
+- **Headless agent**：不装桌面 app 也能从服务器、SSH 主机与 WSL 上报用量，见 [Headless agent](#headless-agent)
 - **iOS 小部件支持**：通过 Worker hub 搭配 Widgy、Scriptable
 - **隐私优先**：提示词、回复、源代码和文件内容都留在你的设备上
 
@@ -196,7 +199,7 @@ brew install --cask token-monitor
 
 ## 多设备同步
 
-挑一个供设备（与任何无头代理）使用的多设备同步后端。在每台设备上打开小部件，在 设置 → 多设备同步 选一个模式。小部件会自动上报本机用量；只在没有小部件的机器上跑 `npm run agent`。iCloud Drive 仅供 macOS 小部件使用，不支持无头代理。
+挑一个供设备（与任何无头代理）使用的多设备同步后端。在每台设备上打开小部件，在 设置 → 多设备同步 选一个模式。小部件会自动上报本机用量；只在没有小部件的机器上跑 [headless agent](#headless-agent)。iCloud Drive 仅供 macOS 小部件使用，不支持无头代理。
 
 #### 方案 A——直接在小部件内开 hub（最简单，无需命令行）
 
@@ -233,6 +236,20 @@ npx wrangler deploy
 
 在每台登录同一 Apple ID 的 Mac 上，进入 设置 → 多设备同步并选择 **iCloud Drive**。这是可选的 macOS 专属模式：Token Monitor 会在 iCloud Drive 的 `Token Monitor/sync-v1/` 下为每台设备和每个写入者保存原子快照，再由每台 Mac 聚合有效文件。不使用 Token Monitor 服务器、CloudKit 或凭据；提供方 API key、Cookie 和 token 保留在本机。iCloud Drive 采用最终一致性，其他 Mac 的更新可能需要一点时间才会出现，损坏或暂时缺失的文件也不会清空最后一次有效的聚合结果。
 
+### Headless agent
+
+在服务器、SSH 主机或 WSL 内——任何使用 AI 工具但没有桌面小部件的地方——运行 headless agent。它会采集该机器的用量并上传到你的 hub（方案 A、B 或 C）。需要 Node.js 22.15+ 与 git。
+
+```bash
+git clone https://github.com/Javis603/token-monitor.git
+cd token-monitor
+npm ci
+cp .env.example .env              # 设置 TOKEN_MONITOR_HUB_URL、TOKEN_MONITOR_SECRET 与不重复的 TOKEN_MONITOR_DEVICE_ID
+npm run agent                     # 持续运行
+```
+
+以服务方式运行、更新、卸载与排查，请见 [docs/headless-agent.zh-CN.md](docs/headless-agent.zh-CN.md)。WSL 内的 SQLite 工具请按照 [WSL SQLite 指南](docs/wsl-sqlite-setup.zh-CN.md)。
+
 ## App 数据
 
 App 状态保存在系统的用户数据目录——卸载时一并删除该目录即可完整移除。
@@ -258,7 +275,7 @@ npm run pack         # 未打包的 app 目录（无安装包），方便本机�
 
 产物会放在 `dist/`。Windows 和 Linux 请在对应系统上使用上面的 `dist:*` 脚本。如果要打包 macOS 发布版，需要本机有 Developer ID Application 签名身份；本地开发或未列出的平台请用 `npm start` 运行。
 
-运行和打包脚本会在四个 vendored 目标上明确确保使用 pinned tokscale binary。其他源码平台会保留 npm binary，并过滤它不支持的 clients；`npm install`、lint 和测试不会下载它。
+运行和打包脚本会在每个有 vendored 构建的目标上明确确保使用 pinned tokscale binary。其他源码平台会保留 npm binary，并过滤它不支持的 clients；`npm install`、lint 和测试不会下载它。
 
 ## 工作原理
 
@@ -267,9 +284,9 @@ npm run pack         # 未打包的 app 目录（无安装包），方便本机�
     小部件 (Electron) ──▶ tokscale ──▶ ~/.claude、~/.codex、$HERMES_HOME
 
 模式 B——同步（可选，多设备）
-    设备 A agent ──▶
-    设备 B agent ──▶  hub  ──▶  任一设备上的小部件
-    设备 C agent ──▶
+    设备 A 小部件 ──▶
+    设备 B 小部件 ──▶  hub  ──▶  任一设备上的小部件
+    设备 C agent  ──▶
 ```
 
 小部件会根据 设置 → 多设备同步 决定走本地还是同步模式。hub 本身可以是单独的 `npm run hub` 进程、Cloudflare Worker，或直接跑在某一个小部件里（Host 模式）。在 Hub Client 和 Host 模式下，hub 通过 Server-Sent Events 把聚合后的统计推送给每个连接中的小部件，所以一台设备上的更新通常会在数秒内出现在其他设备上。iCloud Drive 模式直接同步文件，具有最终一致性，更新可能需要更长时间才会出现。
@@ -302,7 +319,7 @@ npm run pack         # 未打包的 app 目录（无安装包），方便本机�
 设置分两处，日常使用只需要前者：
 
 - **小部件（GUI）**——点右下角的 `⚙` 打开，分区依次为：常规（语言、登录启动、更新）、主画面（首页模块与显示币别）、窗口（窗口行为、菜单栏与悬浮小窗排版、托盘模式、快捷键）、外观（主题与厂商色）、采集（追踪的工具、采集频率、保留已删除会话用量、数据导出）、AI 工具额度（提供方选择、额度与凭据）、订阅资料（每个账号实际付多少）、多设备同步。标题栏的 `⇧` 按钮可循环切换窗口行为。
-- **无头代理与 hub**——没有 UI，用项目根目录的 `.env` 配置（从 `.env.example` 复制）；优先级为 CLI 参数 → 环境变量 → 内置默认。
+- **无头代理与 hub**——没有 UI，用项目根目录的 `.env` 配置（从 `.env.example` 复制）；优先级为 CLI 参数 → 环境变量 → 内置默认。详见 [docs/configuration.md](docs/configuration.md#headless-agent--hub-env)。
 
 每一项设置与所有环境变量的完整说明，请见[设置参考文档](docs/configuration.md)。
 

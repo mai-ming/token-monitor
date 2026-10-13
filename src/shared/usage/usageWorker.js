@@ -63,6 +63,7 @@ collector = startCollector({
     ? { dailyHistoryArchiveWriteEnabled: () => !isExternalAgentActive() }
     : {}),
   onUpdate: (summary, reason) => transformed('update', summary, reason),
+  ...(callbacks.activity ? { onSessionActivity: (patch) => post({ type: 'activity', patch }) } : {}),
   ...(callbacks.preview ? { onPreview: (summary, reason) => { transformed('preview', summary, reason); } } : {}),
   ...(callbacks.error
     ? {
@@ -80,7 +81,7 @@ collector = startCollector({
 });
 post({ type: 'diagnostics', diagnostics: diagnostics() });
 
-const CALLS = new Set(['tick', 'refreshClient', 'whenIdle']);
+const CALLS = new Set(['tick', 'refreshClient', 'whenIdle', 'setCodexDotsVisible']);
 
 function call(message) {
   Promise.resolve()

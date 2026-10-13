@@ -1,5 +1,5 @@
 <p align="right">
-   <a href="./README.md">EN</a> | <a href="./README.zh-CN.md">简</a> | <strong>繁</strong> | <a href="./README.ko.md">KO</a> | <a href="./README.ja.md">JA</a>
+   <a href="./README.md">EN</a> | <a href="./README.zh-CN.md">简</a> | <strong>繁</strong> | <a href="./README.ko.md">KO</a> | <a href="./README.ja.md">JA</a> | <a href="./README.pt-BR.md">PT</a>
 </p>
 <div align="center">
     <img src=".github/assets/app.png" alt="Token Monitor logo" width="120">
@@ -26,7 +26,7 @@
 
 ## 什麼是 Token Monitor？
 
-一款桌面小工具，即時顯示 Claude Code、Codex、Cursor、GitHub Copilot、Cherry Studio 等 44+ 種 AI 編程工具的 Token 用量與 AI 工具額度，具備即時多裝置同步與歷史使用趨勢功能，並支援依工具、裝置、模型、session 或專案分項顯示。
+一款桌面小工具，即時顯示 Claude Code、Codex、Cursor、GitHub Copilot、Cherry Studio 等 45+ 種 AI 編程工具的 Token 用量與 AI 工具額度，具備即時多裝置同步與歷史使用趨勢功能，並支援依工具、裝置、模型、session 或專案分項顯示。
 
 ## 支援的工具
 
@@ -60,6 +60,7 @@ Token Monitor 對 Token 用量、帳戶額度與 session 明細分別支援：
 | <img src=".github/assets/tools-icon/codebuddy.png" width="28" alt="CodeBuddy" /> | CodeBuddy | `~/.codebuddy/projects/` 與 IDE / VS Code 擴充套件日誌 | ✅ | — | ✅ |
 | <img src=".github/assets/tools-icon/workbuddy.png" width="28" alt="WorkBuddy" /> | WorkBuddy | `~/.workbuddy/projects/`、`~/.workbuddy/workbuddy.db` | ✅ | ✅ | ✅ |
 | <img src=".github/assets/tools-icon/proma.png" width="28" alt="Proma" /> | Proma | `~/.proma/agent-sessions/*.jsonl` | ✅ | — | — |
+| <img src=".github/assets/tools-icon/catpaw.png" width="28" alt="CatPaw" /> | CatPaw | `<platform-app-data>/` (`catpaw-moon/`, `catpaw-overseas/`, `catpaw-memory-*.db`) | ✅ | — | — |
 | <img src=".github/assets/tools-icon/qoder.png" width="28" alt="Qoder" /> | Qoder | `~/.qoder-cn/projects/**/*.jsonl`, legacy `<platform-app-data>/QoderCN/SharedClientCache/cache/db/local.db`（僅限中國版） | ✅ | ✅ | — |
 | <img src=".github/assets/tools-icon/liveagent.png" width="28" alt="LiveAgent" /> | LiveAgent | `~/.liveagent/chat-history.sqlite3` | ✅ | — | — |
 | <img src=".github/assets/tools-icon/reasonix.png" width="28" alt="Reasonix" /> | Reasonix | `~/.reasonix/`（`stats/`、`sessions/`、`projects/*/sessions/`） | ✅ | — | — |
@@ -85,13 +86,14 @@ Token Monitor 對 Token 用量、帳戶額度與 session 明細分別支援：
 <br>
 
 - 上表為預設路徑。Token Monitor 與 Tokscale 遵循相同的環境變數覆寫：`~/.local/share/` 下的路徑跟隨 `$XDG_DATA_HOME`，各工具另有 `$CODEX_HOME`、`$GROK_HOME`、`$HERMES_HOME`、`$KIMI_CODE_HOME`、`$UNSLOTH_STUDIO_HOME`、`$LM_STUDIO_HOME`、`$DSH_HOME`、`$REASONIX_STATE_HOME`、`$REASONIX_HOME` 以及 `$CLINE_*` 系列。
+- CatPaw 預設關閉，可在 Settings → tools 中啟用；讀取 macOS 和 Windows 上國內版與海外版助手的資料庫。路徑與驗證邊界見 [CatPaw 資料來源說明](docs/providers/catpaw.md)。
 - LM Studio 追蹤目前僅涵蓋伺服器日誌中記錄的 OpenAI 相容 `/v1/chat/completions` 與 `/v1/responses` 請求。透過 LM Studio 內建 Chat 介面發起的對話，以及原生 `/api/v1/chat` 請求均不包含在內。
 - Unsloth Studio 從 `studio.db` 追蹤 Studio 對話與本機 API 的推論用量。本機推論的 API 費用為零；可識別的按量計費供應商使用 Tokscale 的價格估算。不包含訓練 Token。詳見 [Unsloth 資料來源說明](docs/providers/unsloth.md)。
 - Devin 從本機 `sessions.db` 追蹤 Devin CLI 會話，並從 `acp-events` ACP 日誌追蹤 Devin Desktop 代理會話；同一 session 兩邊都有資料時以 CLI 資料庫為準。Desktop 的涵蓋範圍取決於連接的 ACP 代理：只有會在本機寫入 `usage_update` 事件的代理才會計入，而 Devin Desktop 預設的 `devin-cloud` 代理在伺服器端計量，因此預設的 Desktop 設定不會回報 Desktop token。session 標題與專案歸屬取自 CLI 資料庫。詳見 [Devin 資料來源說明](docs/providers/devin.md)。
 - MiniMax Code 讀取 CLI 寫入的本機工作階段記錄，位於 `~/.minimax` 或 `MINIMAX_DATA_DIR` / `MAVIS_DATA_DIR`（亦包括 `~/.mavis` 與 `~/.minimax-<profile>` / `~/.mavis-<profile>`），並加上以 `tokscale headless mcode` 擷取的執行；兩邊都有的同一輪只計一次。
 
 - Command Code transcript 不包含實際 Token 數或每則訊息的模型資料。Token 用量依 transcript 文字估算；模型歸屬與推算成本則可能反映目前設定的模型，而非每次請求當時實際使用的模型。
-- Cursor 快取來自 Cursor 的帳號層級用量匯出，因此涵蓋 Cursor IDE、Cursor CLI 與 Grok Bot 的用量。Token Monitor 會自動偵測 Cursor 桌面版已登入的帳號，也可在設定中手動新增。快取過期時會自動重新同步，但剛完成的 session 可能要幾分鐘才會出現在 Cursor 控制台，因此用量會在同步後更新，而非即時顯示。
+- Cursor 快取來自 Cursor 的帳號層級用量匯出，因此涵蓋 Cursor IDE、Cursor CLI 與 Grok Bot 的用量。Token Monitor 會自動偵測 Cursor 桌面版已登入的帳號，也可在設定中手動新增。快取過期時會自動重新同步，但剛完成的 session 可能要幾分鐘才會出現在 Cursor 控制台，因此最新用量仍可能延遲顯示。
 
 - Custom 會從一個 GET 餘額端點映射數值 JSON 欄位；僅相容 OpenAI 或 Anthropic API 並不足夠。
 
@@ -132,13 +134,13 @@ Qoder CN 的 Token 用量來自應用程式本機資料，而非 API —— 在 
 
 ### 用量追蹤
 
-- **即時 Token 追蹤**：Claude Code、Codex、Cursor、GitHub Copilot、Antigravity、OpenCode 等 36+ 種 AI 工具，每輪對話後 UI 在數秒內更新（完整清單見上方表格）
+- **即時 Token 追蹤**：Claude Code、Codex、Cursor、GitHub Copilot、Antigravity、OpenCode 等 37+ 種 AI 工具，每輪對話後 UI 在數秒內更新（完整清單見上方表格）
 - **即時 Token 速率**：可選顯示的即時讀數，以 `tok/s` 顯示生成速度或以 `tok/min` 顯示總消耗
 - **單一 session 明細**：點進某個 session，可看每則提問的 Token 消耗，並展開查看每次回覆的 Token 拆分與用到的工具（開啟時才即時讀取本機 transcript 或資料庫，絕不同步）
 - **快取命中統計**：點擊任何工具或模型，展開查看輸入 Token（快取命中與未命中）、輸出 Token 的詳細分類及命中率百分比
 - **成本與幣別**：Token 數量旁附帶成本；可用 USD、TWD、HKD 或 CNY 顯示，匯率每日自動更新，也可在設定中手動覆寫
 - **自訂掃描路徑**：session 不在預設位置時，可為個別工具加入額外的資料夾
-- **WSL 用量（Windows）**：執行中 WSL 發行版裡的檔案型用量會自動偵測，約每 5 分鐘併入總量；OpenCode、Hermes 等 SQLite 來源可能需要依照[指南](docs/wsl-sqlite-setup.zh-CN.md)在 WSL 內執行 headless agent
+- **WSL 用量（Windows）**：執行中 WSL 發行版裡的檔案型用量會自動偵測，約每 5 分鐘併入總量；OpenCode、Hermes 等 SQLite 來源可能需要依照[指南](docs/wsl-sqlite-setup.zh-TW.md)在 WSL 內執行 headless agent
 
 ### 額度、趨勢與匯出
 
@@ -157,6 +159,7 @@ Qoder CN 的 Token 用量來自應用程式本機資料，而非 API —— 在 
 - **多裝置同步**：Hub 同步透過 Server-Sent Events 在數秒內推送更新；iCloud Drive 同步具有最終一致性
 - **本地優先**：單裝置使用完全不需伺服器
 - **自架同步後端**：小工具內 hub、Node CLI hub 或 Cloudflare Worker，任你選
+- **Headless agent**：不裝桌面 app 也能從伺服器、SSH 主機與 WSL 回報用量，見 [Headless agent](#headless-agent)
 - **iOS 小工具支援**：透過 Worker hub 搭配 Widgy、Scriptable
 - **隱私優先**：提示詞、回應、原始碼與檔案內容都留在你的機器上
 
@@ -196,7 +199,7 @@ brew install --cask token-monitor
 
 ## 多裝置同步
 
-挑一個供裝置（與任何無頭代理）使用的多裝置同步後端。在每台裝置上打開小工具，在 設定 → 多裝置同步 選一個模式。小工具會自動回報本機用量；只在沒有小工具的機器上跑 `npm run agent`。iCloud Drive 僅供 macOS 小工具使用，不支援無頭代理。
+挑一個供裝置（與任何無頭代理）使用的多裝置同步後端。在每台裝置上打開小工具，在 設定 → 多裝置同步 選一個模式。小工具會自動回報本機用量；只在沒有小工具的機器上跑 [headless agent](#headless-agent)。iCloud Drive 僅供 macOS 小工具使用，不支援無頭代理。
 
 #### 選項 A——直接在小工具內開 hub（最簡單，無需命令列）
 
@@ -233,6 +236,20 @@ npx wrangler deploy
 
 在每台登入同一 Apple ID 的 Mac 上，進入 設定 → 多裝置同步並選 **iCloud Drive**。這是選擇性、僅限 macOS 的模式：Token Monitor 會在 iCloud Drive 的 `Token Monitor/sync-v1/` 下為每台裝置與每個寫入者保存原子快照，再由各台 Mac 聚合有效檔案。不使用 Token Monitor 伺服器、CloudKit 或憑證；供應商 API key、Cookie 與 token 留在本機。iCloud Drive 具最終一致性，其他 Mac 的更新可能需要一點時間才會出現，損壞或暫時缺失的檔案也不會清空最後一次有效的聚合結果。
 
+### Headless agent
+
+在伺服器、SSH 主機或 WSL 內——任何使用 AI 工具但沒有桌面小工具的地方——執行 headless agent。它會收集該機器的用量並上傳到你的 hub（選項 A、B 或 C）。需要 Node.js 22.15+ 與 git。
+
+```bash
+git clone https://github.com/Javis603/token-monitor.git
+cd token-monitor
+npm ci
+cp .env.example .env              # 設定 TOKEN_MONITOR_HUB_URL、TOKEN_MONITOR_SECRET 與不重複的 TOKEN_MONITOR_DEVICE_ID
+npm run agent                     # 持續執行
+```
+
+以服務方式執行、更新、移除與疑難排解，請見 [docs/headless-agent.zh-TW.md](docs/headless-agent.zh-TW.md)。WSL 內的 SQLite 工具請依照 [WSL SQLite 指南](docs/wsl-sqlite-setup.zh-TW.md)。
+
 ## App 資料
 
 App 狀態存在 OS 使用者資料目錄——解除安裝時一併刪除該資料夾即可完整移除。
@@ -258,7 +275,7 @@ npm run pack         # 未封裝的 app 目錄（無安裝檔），方便本機�
 
 產物會放在 `dist/`。Windows 和 Linux 請在對應系統上使用上面的 `dist:*` 腳本。如果要打包 macOS 發布版，需要本機有 Developer ID Application 簽章身份；本機開發或未列出的平台請用 `npm start` 啟動。
 
-Runtime 與打包腳本會在四個 vendored 目標上明確確保使用 pinned tokscale binary。其他原始碼平台會保留 npm binary，並過濾它不支援的 clients；`npm install`、lint 與測試不會下載它。
+Runtime 與打包腳本會在每個有 vendored 建置的目標上明確確保使用 pinned tokscale binary。其他原始碼平台會保留 npm binary，並過濾它不支援的 clients；`npm install`、lint 與測試不會下載它。
 
 ## 運作原理
 
@@ -267,9 +284,9 @@ Runtime 與打包腳本會在四個 vendored 目標上明確確保使用 pinned 
     小工具 (Electron) ──▶ tokscale ──▶ ~/.claude、~/.codex、$HERMES_HOME
 
 模式 B——同步（選用，多裝置）
-    裝置 A agent ──▶
-    裝置 B agent ──▶  hub  ──▶  任一裝置上的小工具
-    裝置 C agent ──▶
+    裝置 A 小工具 ──▶
+    裝置 B 小工具 ──▶  hub  ──▶  任一裝置上的小工具
+    裝置 C agent  ──▶
 ```
 
 小工具會根據 設定 → 多裝置同步 決定走本地或同步模式。hub 本身可以是獨立的 `npm run hub` 程序、Cloudflare Worker，或直接跑在某一個小工具裡（Host 模式）。在 Hub Client 和 Host 模式下，hub 透過 Server-Sent Events 把彙總後的統計推送給每個連線中的小工具，所以一台裝置上的更新通常會在數秒內出現在其他裝置上。iCloud Drive 模式直接同步檔案，具有最終一致性，更新可能需要更長時間才會出現。
@@ -302,7 +319,7 @@ Runtime 與打包腳本會在四個 vendored 目標上明確確保使用 pinned 
 設定分兩處，日常使用只需要前者：
 
 - **小工具（GUI）**——點右下角的 `⚙` 開啟，分區依序為：一般（語言、登入啟動、更新）、主畫面（首頁模組與顯示幣別）、視窗（視窗行為、選單列與懸浮小窗排版、托盤模式、快捷鍵）、外觀（主題與廠商色）、採集（追蹤的工具、採集頻率、保留已刪除會話用量、資料匯出）、AI 工具額度（供應商選擇、額度與憑證）、訂閱資料（每個帳號實際付多少）、多裝置同步。標題列的 `⇧` 鈕可循環切換視窗行為。
-- **無頭代理與 hub**——沒有 UI，用專案根目錄的 `.env` 設定（從 `.env.example` 複製）；優先序為 CLI 旗標 → 環境變數 → 內建預設。
+- **無頭代理與 hub**——沒有 UI，用專案根目錄的 `.env` 設定（從 `.env.example` 複製）；優先序為 CLI 旗標 → 環境變數 → 內建預設。詳見 [docs/configuration.md](docs/configuration.md#headless-agent--hub-env)。
 
 每一項設定與所有環境變數的完整說明，請見[設定參考文件](docs/configuration.md)。
 

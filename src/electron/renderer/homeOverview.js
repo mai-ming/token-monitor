@@ -135,6 +135,7 @@
           providerId: account.providerId || '',
           iconId: account.iconId || '',
           name: account.name || '',
+          plan: account.plan || '',
           color: account.color || '',
           lowestRemaining: Math.min(...windows.map((window) => window.remainingPercent ?? 100)),
           windows,
@@ -162,7 +163,8 @@
       name: row.name || '',
       value: Math.max(0, Number(row.value || 0)),
       share: total > 0 ? Math.max(0, Number(row.value || 0)) / total : 0,
-      color: row.color || ''
+      color: row.color || '',
+      ...(row.modelSource ? { modelSource: row.modelSource } : {})
     }));
   }
 
@@ -232,6 +234,7 @@
     limit = 3,
     sort = 'remaining',
     accountName,
+    accountPlan,
     accountColor,
     accountIcon,
     isWindowHidden = null
@@ -249,6 +252,7 @@
           key: `${id}:${index}`,
           providerId: id,
           name: typeof accountName === 'function' ? accountName(provider, index, providerEntries) : label,
+          plan: typeof accountPlan === 'function' ? accountPlan(provider, index, providerEntries) : '',
           color: typeof accountColor === 'function'
             ? accountColor(provider, id, colors[id] || colors.default || '')
             : (colors[id] || colors.default || ''),

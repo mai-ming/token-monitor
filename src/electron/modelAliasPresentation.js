@@ -7,10 +7,12 @@ const {
   createModelAliasResolver
 } = require('./renderer/modelAliases');
 const { historyRevision, num } = require('../shared/history');
+const { isGrokBotSession } = require('./renderer/sessionRows');
 
 const MODEL_MAP_FIELDS = [
   'models',
   'modelCosts',
+  'modelUnpricedTokens',
   'modelCacheReads',
   'modelCacheWrites',
   'modelOutputs',
@@ -71,7 +73,7 @@ function collectUsageModelIds(value, modelIds = new Set()) {
   addModelId(modelIds, value.model);
   for (const field of MODEL_MAP_FIELDS) addModelMapIds(modelIds, value[field]);
   addModelMapIds(modelIds, value.modelThroughput);
-  for (const field of ['clientModels', 'clientModelCosts']) addClientModelIds(modelIds, value[field]);
+  for (const field of ['clientModels', 'clientModelCosts', 'clientModelUnpricedTokens']) addClientModelIds(modelIds, value[field]);
   for (const field of ['sessions', 'projects']) {
     for (const row of Object.values(value[field] || {})) collectUsageModelIds(row, modelIds);
   }
@@ -158,6 +160,7 @@ const USAGE_PROJECTIONS = [
   ['modelThroughput', foldModelThroughput],
   ['clientModels', foldClientModelMaps],
   ['clientModelCosts', foldClientModelMaps],
+  ['clientModelUnpricedTokens', foldClientModelMaps],
   ['sessions', projectNestedUsage],
   ['projects', projectNestedUsage]
 ];
@@ -180,6 +183,11 @@ function projectUsage(value, resolve) {
     if (projected === map) continue;
     if (result === value) result = { ...value };
     result[field] = projected;
+  }
+  // Keep source classification when a display alias erases the bot model id.
+  // This flag belongs only to the Electron projection, never the wire record.
+  if (isGrokBotSession(value) !== isGrokBotSession(result)) {
+    result = { ...result, grokBotSession: isGrokBotSession(value) };
   }
   return result;
 }

@@ -92,8 +92,16 @@ test('SignPath configurations restrict every signed PE to the release product me
       'product-version': '${version}'
     }
   ]);
-  assert.equal(pkg.build.win.verifyUpdateCodeSignature, true);
-  assert.equal(pkg.build.win.signtoolOptions.publisherName, 'SignPath Foundation');
+  // This fork does not sign — no certificate is configured, and every build logs
+  // "no code signing certificate configured, signing is skipped". Declaring a
+  // publisher here would write publisherName into resources/app-update.yml, and
+  // electron-updater's NsisUpdater verifies the *downloaded* installer against it
+  // before accepting an update. Unsigned can never match, so every in-app update
+  // would download the whole installer and then discard it with
+  // ERR_UPDATER_INVALID_SIGNATURE. Upstream's own pipeline signs with SignPath,
+  // which is why their config carries the publisher; ours must not.
+  assert.equal(pkg.build.win.verifyUpdateCodeSignature, false);
+  assert.equal(pkg.build.win.signtoolOptions, undefined);
 });
 
 test('release workflow signs the application before packaging and signs public artifacts last', () => {

@@ -4,31 +4,30 @@
 
 <!-- app-update-notes:en:start -->
 ### Added
-- **MiniMax Code usage:** Adds token usage tracking for local CLI and desktop sessions. (#939)
-- **MiniMax API region:** Choose Auto, China or International for quota checks. (#883, #865)
-- **Custom cache-write pricing:** Supports regular and 1-hour cache-write rates. (#938)
+- **Claude Code and Codex waiting states:** Shows when a session is waiting for a reply or approval in Home, Sessions and Edge Dock, including before token usage arrives. (#977)
+- **Codex subagents:** Groups subagents under their parent in Sessions, with combined usage and individual session details. (#997)
+- **T3 Code sessions:** Groups continuations and delegated agents with their main conversation across Home, Sessions and Edge Dock. (#1001)
+- **Cursor Grok Bot:** Groups activity records in Sessions with usage totals and a list of individual records. (#987)
+- **Antigravity session titles:** Shows conversation titles and keeps them up to date after renaming. (#978)
+- **Antigravity generation speed:** Supports native generation-speed readings. (#957)
 
 ### Improved
-- **Multi-device Sync settings:** Shows connection health, upload times and device details, with connection editing and offline-device removal in one place. (#931)
+- **Cursor usage refresh:** Refreshes cloud usage in response to desktop activity. (#966)
+- **Cursor running indicator:** Stops the running indicator more promptly when a turn finishes or is cancelled. (#985)
 
 ### Fixed
-- **Custom model pricing:** Applies custom rates over reported costs and refreshes matching historical costs after price changes. (#938, #933)
-- **Claude Code costs:** Uses the 1-hour cache-write rate for 1-hour cache writes. (#933)
-- **Codex session titles:** Reads titles from T3 Code V2. (#937)
-- **Large session details:** Prevents crashes while loading large Codex, Claude Code and DeepSeek Harness transcripts. (#930, #932)
-- **JSON data exports:** Keeps session titles and other session text out of exported usage data. (#925)
-- **First launch:** Opens fresh installations on Home. (#922)
-
-### Changed
-- **Tokscale updates:** Updates the bundled build through Token Monitor releases and removes the separate in-app updater. (#923)
+- **Antigravity quotas in Home:** Shows both 5-hour and Weekly quotas when only one model group is visible. (#973)
+- **Antigravity token totals:** Includes reasoning tokens in usage totals and history. (#957)
+- **Device names:** Uses consistent names in Devices, sync settings and live token-rate details. (#969)
+- **Windows Edge Dock:** Fixes the dock falling behind other windows after waking from sleep. (#994)
 <!-- app-update-notes:en:end -->
 ## Download
 
-- **macOS Apple Silicon** — [Token-Monitor-0.66.0-arm64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0-arm64.dmg)
-- **macOS Intel** — [Token-Monitor-0.66.0-x64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0-x64.dmg)
-- **Windows Installer** — [Token-Monitor-Setup-0.66.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-Setup-0.66.0.exe) (recommended)
-- **Windows Portable** — [Token-Monitor-0.66.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0.exe) (no install required)
-- **Linux x64** — [Token-Monitor-0.66.0.AppImage](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0.AppImage)
+- **macOS Apple Silicon** — [Token-Monitor-0.69.0-arm64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0-arm64.dmg)
+- **macOS Intel** — [Token-Monitor-0.69.0-x64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0-x64.dmg)
+- **Windows Installer** — [Token-Monitor-Setup-0.69.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-Setup-0.69.0.exe) (recommended)
+- **Windows Portable** — [Token-Monitor-0.69.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0.exe) (no install required)
+- **Linux x64** — [Token-Monitor-0.69.0.AppImage](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0.AppImage)
 
 <details>
 <summary><strong>First launch and other notes</strong></summary>
@@ -64,32 +63,31 @@ Tokscale is bundled with this app and updated through Token Monitor releases. Se
 
 <!-- app-update-notes:zh:start -->
 ### 新增
-- **MiniMax Code 用量：** 新增本地 CLI 与桌面会话的 Tokens 用量追踪支持。（#939）
-- **MiniMax API 地区：** 支持选择“自动”、“中国区”或“国际版”查询额度。（#883、#865）
-- **自定义缓存写入单价：** 支持设置常规和 1 小时缓存写入单价。（#938）
+- **Claude Code 与 Codex 等待状态：** 在主页、会话和侧边栏显示等待回复或批准的状态，尚未产生 Token 用量的会话也可显示。 （#977）
+- **Codex 子代理：** 在会话中按主会话分组，显示合计用量，并可查看各个会话的详情。 （#997）
+- **T3 Code 会话：** 在主页、会话和侧边栏将续接会话与委派的子代理归入主对话。 （#1001）
+- **Cursor Grok Bot：** 在会话中集中显示活动记录、合计用量，并可展开查看各条记录。 （#987）
+- **Antigravity 会话标题：** 支持显示对话标题，并跟随重命名更新。 （#978）
+- **Antigravity 生成速度：** 支持显示原生生成速度。 （#957）
 
 ### 改进
-- **多设备同步设置：** 显示连接状态、上传时间和设备详情，并集中提供连接编辑与离线设备移除操作。（#931）
+- **Cursor 用量刷新：** 根据桌面端活动刷新云端用量。 （#966）
+- **Cursor 运行指示：** 回合结束或取消后，更及时地停止运行指示。 （#985）
 
 ### 修复
-- **自定义模型单价：** 优先使用自定义单价计算费用，修改后更新对应的历史费用。（#938、#933）
-- **Claude Code 费用：** 1 小时缓存写入按对应单价计费。（#933）
-- **Codex 会话标题：** 正确读取 T3 Code V2 中的标题。（#937）
-- **大型会话详情：** 修复加载大型 Codex、Claude Code 和 DeepSeek Harness 对话记录时可能崩溃的问题。（#930、#932）
-- **JSON 数据导出：** 导出的用量数据不再包含会话标题等会话文本。（#925）
-- **首次启动：** 全新安装默认打开主页。（#922）
-
-### 变更
-- **Tokscale 更新：** 内置构建随 Token Monitor 版本更新，移除应用内独立更新功能。（#923）
+- **主页 Antigravity 额度：** 仅显示一个模型组时，同时显示 5-hour 和 Weekly 额度。 （#973）
+- **Antigravity Token 总量：** 用量总计与历史数据计入推理 Tokens。 （#957）
+- **设备名称：** 统一设备、同步设置与实时 Token 速率详情中的名称。 （#969）
+- **Windows 侧边栏：** 修复睡眠唤醒后被其他窗口遮挡的问题。 （#994）
 <!-- app-update-notes:zh:end -->
 
 ## 下载
 
-- **macOS Apple Silicon** — [Token-Monitor-0.66.0-arm64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0-arm64.dmg)
-- **macOS Intel** — [Token-Monitor-0.66.0-x64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0-x64.dmg)
-- **Windows 安装版** — [Token-Monitor-Setup-0.66.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-Setup-0.66.0.exe)（推荐）
-- **Windows 便携版** — [Token-Monitor-0.66.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0.exe)（免安装）
-- **Linux x64** — [Token-Monitor-0.66.0.AppImage](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0.AppImage)
+- **macOS Apple Silicon** — [Token-Monitor-0.69.0-arm64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0-arm64.dmg)
+- **macOS Intel** — [Token-Monitor-0.69.0-x64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0-x64.dmg)
+- **Windows 安装版** — [Token-Monitor-Setup-0.69.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-Setup-0.69.0.exe)（推荐）
+- **Windows 便携版** — [Token-Monitor-0.69.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0.exe)（免安装）
+- **Linux x64** — [Token-Monitor-0.69.0.AppImage](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0.AppImage)
 
 <details>
 <summary><strong>首次启动与其他说明</strong></summary>
@@ -120,7 +118,7 @@ Tokscale 已随应用内置，并通过 Token Monitor 发布版本更新。你�
 ---
 
 <details>
-<summary><strong>Full Changelog:</strong> <a href="https://github.com/Javis603/token-monitor/compare/v0.65.0...v0.66.0">v0.65.0...v0.66.0</a></summary>
+<summary><strong>Full Changelog:</strong> <a href="https://github.com/Javis603/token-monitor/compare/v0.68.0...v0.69.0">v0.68.0...v0.69.0</a></summary>
 
 <!-- github-generated-release-notes -->
 
@@ -138,32 +136,31 @@ Tokscale 已随应用内置，并通过 Token Monitor 发布版本更新。你�
 
 <!-- app-update-notes:zh-TW:start -->
 ### 新增
-- **MiniMax Code 用量：** 新增本機 CLI 與桌面會話的 Tokens 用量追蹤支援。（#939）
-- **MiniMax API 地區：** 支援選擇「自動」、「中國區」或「國際版」查詢額度。（#883、#865）
-- **自訂快取寫入單價：** 支援設定一般與 1 小時快取寫入單價。（#938）
+- **Claude Code 與 Codex 等候狀態：** 在主頁、會話和側邊欄顯示等待回覆或批准的狀態，尚未產生 Token 用量的會話也可顯示。 （#977）
+- **Codex 子代理：** 在會話中依主會話分組，顯示合計用量，並可查看各個會話的詳情。 （#997）
+- **T3 Code 會話：** 在主頁、會話和側邊欄將接續會話與委派的子代理歸入主對話。 （#1001）
+- **Cursor Grok Bot：** 在會話中集中顯示活動記錄、合計用量，並可展開查看各筆記錄。 （#987）
+- **Antigravity 會話標題：** 支援顯示對話標題，並隨重新命名更新。 （#978）
+- **Antigravity 生成速度：** 支援顯示原生生成速度。 （#957）
 
 ### 改進
-- **多裝置同步設定：** 顯示連線狀態、上傳時間與裝置詳情，並集中提供連線編輯與離線裝置移除操作。（#931）
+- **Cursor 用量重新整理：** 依桌面端活動重新整理雲端用量。 （#966）
+- **Cursor 執行指示：** 回合結束或取消後，更及時地停止執行指示。 （#985）
 
 ### 修復
-- **自訂模型單價：** 優先使用自訂單價計算費用，修改後更新對應的歷史費用。（#938、#933）
-- **Claude Code 費用：** 1 小時快取寫入按對應單價計費。（#933）
-- **Codex 會話標題：** 正確讀取 T3 Code V2 中的標題。（#937）
-- **大型會話詳情：** 修復載入大型 Codex、Claude Code 與 DeepSeek Harness 對話記錄時可能崩潰的問題。（#930、#932）
-- **JSON 資料匯出：** 匯出的用量資料不再包含會話標題等會話文字。（#925）
-- **首次啟動：** 全新安裝預設開啟主頁。（#922）
-
-### 變更
-- **Tokscale 更新：** 內建版本隨 Token Monitor 版本更新，移除應用程式內的獨立更新功能。（#923）
+- **主頁 Antigravity 額度：** 僅顯示一個模型組時，同時顯示 5-hour 和 Weekly 額度。 （#973）
+- **Antigravity Token 總量：** 用量總計與歷史資料計入推理 Token。 （#957）
+- **裝置名稱：** 統一裝置、同步設定與即時 Token 速率詳情中的名稱。 （#969）
+- **Windows 側邊欄：** 修復睡眠喚醒後被其他視窗遮擋的問題。 （#994）
 <!-- app-update-notes:zh-TW:end -->
 
 ## 下載
 
-- **macOS Apple Silicon** — [Token-Monitor-0.66.0-arm64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0-arm64.dmg)
-- **macOS Intel** — [Token-Monitor-0.66.0-x64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0-x64.dmg)
-- **Windows 安裝版** — [Token-Monitor-Setup-0.66.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-Setup-0.66.0.exe)（推薦）
-- **Windows 便攜版** — [Token-Monitor-0.66.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0.exe)（免安裝）
-- **Linux x64** — [Token-Monitor-0.66.0.AppImage](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0.AppImage)
+- **macOS Apple Silicon** — [Token-Monitor-0.69.0-arm64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0-arm64.dmg)
+- **macOS Intel** — [Token-Monitor-0.69.0-x64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0-x64.dmg)
+- **Windows 安裝版** — [Token-Monitor-Setup-0.69.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-Setup-0.69.0.exe)（推薦）
+- **Windows 便攜版** — [Token-Monitor-0.69.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0.exe)（免安裝）
+- **Linux x64** — [Token-Monitor-0.69.0.AppImage](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0.AppImage)
 
 </details>
 
@@ -176,32 +173,31 @@ Tokscale 已随应用内置，并通过 Token Monitor 发布版本更新。你�
 
 <!-- app-update-notes:ko:start -->
 ### 추가
-- **MiniMax Code 사용량:** 로컬 CLI 및 데스크톱 세션의 토큰 사용량 추적을 지원합니다. (#939)
-- **MiniMax API 지역:** 한도 조회에 자동, 중국 또는 국제 지역을 선택할 수 있습니다. (#883, #865)
-- **사용자 지정 캐시 쓰기 가격:** 일반 및 1시간 캐시 쓰기 단가를 설정할 수 있습니다. (#938)
+- **Claude Code와 Codex 응답 대기 상태:** 홈, 세션, 가장자리 도크에 응답이나 승인을 기다리는 상태를 표시합니다. 토큰 사용량이 아직 없는 세션도 표시됩니다. (#977)
+- **Codex 하위 에이전트:** 세션에서 상위 세션 아래로 묶어 총사용량과 개별 세션 상세 내용을 확인할 수 있습니다. (#997)
+- **T3 Code 세션:** 홈, 세션, 가장자리 도크에서 이어진 세션과 위임한 하위 에이전트를 메인 대화로 묶습니다. (#1001)
+- **Cursor Grok Bot:** 세션에서 활동 기록과 총사용량을 모아 표시하고, 개별 기록을 펼쳐 볼 수 있습니다. (#987)
+- **Antigravity 세션 제목:** 대화 제목을 표시하고 이름 변경을 반영합니다. (#978)
+- **Antigravity 생성 속도:** 자체 생성 속도 측정값 표시를 지원합니다. (#957)
 
 ### 개선
-- **다중 기기 동기화 설정:** 연결 상태, 업로드 시각과 기기 정보를 표시하고, 연결 편집과 오프라인 기기 제거를 한곳에서 제공합니다. (#931)
+- **Cursor 사용량 갱신:** 데스크톱 활동에 맞춰 클라우드 사용량을 갱신합니다. (#966)
+- **Cursor 실행 표시:** 턴이 끝나거나 취소되면 실행 중 표시를 더 빠르게 종료합니다. (#985)
 
 ### 수정
-- **사용자 지정 모델 가격:** 보고된 비용보다 사용자 지정 단가를 우선 적용하고, 가격 변경 후 해당 과거 비용을 갱신합니다. (#938, #933)
-- **Claude Code 비용:** 1시간 캐시 쓰기에 해당 단가를 적용합니다. (#933)
-- **Codex 세션 제목:** T3 Code V2의 제목을 올바르게 읽습니다. (#937)
-- **대용량 세션 상세:** 큰 Codex, Claude Code 및 DeepSeek Harness 대화 기록을 불러올 때 발생할 수 있던 충돌을 수정했습니다. (#930, #932)
-- **JSON 데이터 내보내기:** 내보낸 사용량 데이터에서 세션 제목 등 세션 텍스트를 제외합니다. (#925)
-- **첫 실행:** 새로 설치하면 홈 화면을 엽니다. (#922)
-
-### 변경
-- **Tokscale 업데이트:** 내장 빌드는 Token Monitor 릴리스를 통해 업데이트하며, 별도의 앱 내 업데이트 기능을 제거했습니다. (#923)
+- **홈의 Antigravity 한도:** 모델 그룹이 하나만 표시될 때 5-hour와 Weekly 한도를 함께 표시합니다. (#973)
+- **Antigravity 토큰 합계:** 사용량 합계와 기록에 추론 토큰을 포함합니다. (#957)
+- **기기 이름:** 기기, 동기화 설정, 실시간 토큰 속도 상세 정보에 같은 이름을 표시합니다. (#969)
+- **Windows 가장자리 도크:** 절전 모드에서 깨어난 뒤 다른 창 뒤에 가려지는 문제를 수정했습니다. (#994)
 <!-- app-update-notes:ko:end -->
 
 ## 다운로드
 
-- **macOS Apple Silicon** — [Token-Monitor-0.66.0-arm64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0-arm64.dmg)
-- **macOS Intel** — [Token-Monitor-0.66.0-x64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0-x64.dmg)
-- **Windows 설치 버전** — [Token-Monitor-Setup-0.66.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-Setup-0.66.0.exe) (권장)
-- **Windows 포터블 버전** — [Token-Monitor-0.66.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0.exe) (설치 필요 없음)
-- **Linux x64** — [Token-Monitor-0.66.0.AppImage](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0.AppImage)
+- **macOS Apple Silicon** — [Token-Monitor-0.69.0-arm64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0-arm64.dmg)
+- **macOS Intel** — [Token-Monitor-0.69.0-x64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0-x64.dmg)
+- **Windows 설치 버전** — [Token-Monitor-Setup-0.69.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-Setup-0.69.0.exe) (권장)
+- **Windows 포터블 버전** — [Token-Monitor-0.69.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0.exe) (설치 필요 없음)
+- **Linux x64** — [Token-Monitor-0.69.0.AppImage](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0.AppImage)
 
 </details>
 
@@ -214,32 +210,31 @@ Tokscale 已随应用内置，并通过 Token Monitor 发布版本更新。你�
 
 <!-- app-update-notes:ja:start -->
 ### 追加
-- **MiniMax Code 使用量：** ローカルの CLI・デスクトップセッションのトークン使用量追跡に対応しました。 (#939)
-- **MiniMax API リージョン：** クォータの取得先を自動・中国・国際から選べます。 (#883, #865)
-- **カスタムキャッシュ書き込み単価：** 通常と1時間のキャッシュ書き込み単価を設定できます。 (#938)
+- **Claude Code と Codex の応答待ち表示：** ホーム、セッション、エッジドックに応答や承認を待っている状態を表示します。トークン使用量がまだないセッションも表示できます。 （#977）
+- **Codex サブエージェント：** セッションで親セッションの下にまとめ、合計使用量と個々のセッションの詳細を確認できます。 （#997）
+- **T3 Code のセッション：** ホーム、セッション、エッジドックで継続セッションと委任したサブエージェントをメインの会話にまとめます。 （#1001）
+- **Cursor Grok Bot：** セッションにアクティビティ記録と合計使用量をまとめて表示し、個々の記録を開けます。 （#987）
+- **Antigravity のセッションタイトル：** 会話のタイトルを表示し、名前の変更を反映します。 （#978）
+- **Antigravity の生成速度：** ネイティブの生成速度の表示に対応しました。 （#957）
 
 ### 改善
-- **マルチデバイス同期設定：** 接続状態、アップロード時刻、デバイス情報を表示し、接続の編集とオフラインデバイスの削除を一か所にまとめました。 (#931)
+- **Cursor の使用量更新：** デスクトップでのアクティビティに応じてクラウド使用量を更新します。 （#966）
+- **Cursor の実行中表示：** ターンの終了やキャンセル後、実行中表示をより速やかに終了します。 （#985）
 
 ### 修正
-- **カスタムモデル単価：** 報告された費用よりカスタム単価を優先し、単価の変更後に該当する過去の費用を更新します。 (#938, #933)
-- **Claude Code の費用：** 1時間のキャッシュ書き込みに対応する単価を適用します。 (#933)
-- **Codex セッションタイトル：** T3 Code V2 のタイトルを正しく読み取ります。 (#937)
-- **大容量セッションの詳細：** 大きな Codex、Claude Code、DeepSeek Harness の会話記録を読み込む際にクラッシュする問題を修正しました。 (#930, #932)
-- **JSON データエクスポート：** 出力する使用量データからセッションタイトルなどの会話テキストを除外します。 (#925)
-- **初回起動：** 新規インストール時にホームを開きます。 (#922)
-
-### 変更
-- **Tokscale の更新：** 内蔵ビルドは Token Monitor のリリースで更新し、アプリ内の独立した更新機能を廃止しました。 (#923)
+- **ホームの Antigravity 上限：** モデルグループが1つだけ表示される場合、5-hour と Weekly の両方を表示します。 （#973）
+- **Antigravity のトークン合計：** 使用量の合計と履歴に推論トークンを含めます。 （#957）
+- **デバイス名：** デバイス、同期設定、ライブトークンレートの詳細で同じ名前を表示します。 （#969）
+- **Windows のエッジドック：** スリープからの復帰後にほかのウィンドウに隠れる問題を修正しました。 （#994）
 <!-- app-update-notes:ja:end -->
 
 ## ダウンロード
 
-- **macOS Apple Silicon** — [Token-Monitor-0.66.0-arm64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0-arm64.dmg)
-- **macOS Intel** — [Token-Monitor-0.66.0-x64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0-x64.dmg)
-- **Windows インストーラー** — [Token-Monitor-Setup-0.66.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-Setup-0.66.0.exe)（推奨）
-- **Windows ポータブル版** — [Token-Monitor-0.66.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0.exe)（インストール不要）
-- **Linux x64** — [Token-Monitor-0.66.0.AppImage](https://github.com/Javis603/token-monitor/releases/download/v0.66.0/Token-Monitor-0.66.0.AppImage)
+- **macOS Apple Silicon** — [Token-Monitor-0.69.0-arm64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0-arm64.dmg)
+- **macOS Intel** — [Token-Monitor-0.69.0-x64.dmg](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0-x64.dmg)
+- **Windows インストーラー** — [Token-Monitor-Setup-0.69.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-Setup-0.69.0.exe)（推奨）
+- **Windows ポータブル版** — [Token-Monitor-0.69.0.exe](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0.exe)（インストール不要）
+- **Linux x64** — [Token-Monitor-0.69.0.AppImage](https://github.com/Javis603/token-monitor/releases/download/v0.69.0/Token-Monitor-0.69.0.AppImage)
 
 </details>
 

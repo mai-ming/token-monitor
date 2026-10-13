@@ -602,3 +602,47 @@ test('a real worker that crashes hands its pending call to this thread', async (
   runtime.stop();
   await runtime.whenIdle();
 });
+
+test('Dots visibility reaches a running worker without replacing it and survives worker fallback', async () => {
+  FakeWorker.reset();
+  const inProcess = fakeInProcessCollector();
+  const coordinator = createUsageHostCoordinator({ Worker: FakeWorker, startCollector: inProcess.startCollector });
+  const runtime = coordinator.create({ clients: 'codex', codexDotsEnabled: true, codexDotsVisible: true });
+  await flush();
+  const worker = FakeWorker.last();
+  const hidden = runtime.setCodexDotsVisible(false);
+  const call = worker.calls().at(-1);
+  assert.equal(call.method, 'setCodexDotsVisible');
+  assert.deepEqual(call.args, [false]);
+  worker.reply({ type: 'result', id: call.id, value: true });
+  assert.equal(await hidden, true);
+  assert.equal(FakeWorker.instances.length, 1);
+  assert.equal(worker.terminated, 0);
+  worker.emit('error', new Error('fixture crash'));
+  worker.emit('exit', 1);
+  assert.equal(inProcess.started[0].options.codexDotsVisible, false);
+  runtime.stop();
+  await runtime.whenIdle();
+});
+
+test('a real worker sends a bounded activity patch without transforming or capturing another usage record', async () => {
+  const records = [];
+  const patches = [];
+  const coordinator = createUsageHostCoordinator({ workerPath: SCRIPTED_WORKER });
+  const host = coordinator.create({
+    clients: 'codex', scriptedSessionId: 'activity-only',
+    onUpdate: (summary) => records.push(summary),
+    onSessionActivity: (patch) => patches.push(patch)
+  }, { transformSettings: { clients: ['codex'], projectsEnabled: false } });
+  try {
+    await host.tick('startup');
+    const before = host.getArchiveState();
+    await host.tick('activity');
+    assert.equal(records.length, 1);
+    assert.equal(patches.length, 1);
+    assert.equal(patches[0].observations[0].sessionId, 'activity-only');
+    assert.equal(patches[0].observations[0].liveActivity.state, 'waiting');
+    assert.deepEqual(host.getArchiveState(), before);
+    assert.ok(JSON.stringify(patches[0]).length < 250);
+  } finally { host.stop(); await host.whenIdle(); }
+});

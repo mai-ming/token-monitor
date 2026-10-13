@@ -52,11 +52,86 @@ const FX_SESSION_ID = 'fxsess-0001-aaaa-bbbb-ccccdddddddd';
 const PROMA_SESSION_ID = /^proma:tm-contract@[0-9a-f]{12}$/;
 const QODER_CN_SESSION_ID = /^qodercn:qodercn:jsonl:[0-9a-f]{12}:qsess-1$/;
 const MCODE_SESSION_ID = 'mvs_0123456789abcdef0123456789abcdef';
+const DSH_MODEL_CONTRACT_CASES = Object.freeze([
+  { responseModel: 'keepalive', sourceModel: 'deepseek-reasoner', expectedModel: 'deepseek-reasoner' },
+  { responseModel: '  KeEpAlIvE  ', sourceModel: 'deepseek-reasoner', expectedModel: 'deepseek-reasoner' },
+  { responseModel: 'keepalive', sourceModel: '', headerModel: 'deepseek-reasoner', expectedModel: 'deepseek-reasoner' },
+  { responseModel: 'glm-5.3', sourceModel: 'glm-5.2', expectedModel: 'glm-5.3' },
+  { responseModel: 'keepalive-v2', sourceModel: 'glm-5.2', expectedModel: 'keepalive-v2' },
+  { responseModel: '', sourceModel: 'keepalive', expectedModel: 'keepalive' }
+]);
 // Every Tokscale-parsed client added after the legacy baseline in
 // tests/shared/tokscaleTokenContracts.test.js needs a case here. That test
 // makes a new catalog id fail locally until its real binary output and Token
 // Monitor normalization are both exercised by this release gate.
 const TOKEN_CONTRACT_CASES = Object.freeze([
+  {
+    client: 'hermes',
+    // Hermes stores reasoning inside output; Tokscale splits it before JSON.
+    expectedRow: { model: 'claude-sonnet-4-5', input: 1000, output: 250, cacheRead: 200, cacheWrite: 50, reasoning: 150, cost: 1.25 },
+    hasExplicitTotal: false,
+    expectedPeriod: { totalTokens: 1650, clientTokens: 1650, clientOutputTokens: 400 },
+    expectedSession: { id: 'hermes-contract', totalTokens: 1650, outputTokens: 400, reasoningTokens: 150 },
+    writeFixture(home) {
+      const { DatabaseSync } = require('node:sqlite');
+      const dir = path.join(home, '.hermes');
+      fs.mkdirSync(dir, { recursive: true });
+      const db = new DatabaseSync(path.join(dir, 'state.db'));
+      try {
+        db.exec(`CREATE TABLE sessions (
+          id TEXT PRIMARY KEY, model TEXT, billing_provider TEXT, started_at REAL,
+          message_count INTEGER, input_tokens INTEGER, output_tokens INTEGER,
+          cache_read_tokens INTEGER, cache_write_tokens INTEGER, reasoning_tokens INTEGER,
+          actual_cost_usd REAL, estimated_cost_usd REAL
+        );
+        INSERT INTO sessions VALUES
+          ('hermes-contract', 'claude-sonnet-4-5', 'anthropic', 1787196900, 1, 1000, 400, 200, 50, 150, 1.25, 1.25);
+        CREATE TABLE session_model_usage (
+          session_id TEXT, model TEXT, billing_provider TEXT, input_tokens INTEGER,
+          output_tokens INTEGER, cache_read_tokens INTEGER, cache_write_tokens INTEGER,
+          reasoning_tokens INTEGER, actual_cost_usd REAL, estimated_cost_usd REAL
+        );
+        INSERT INTO session_model_usage VALUES
+          ('hermes-contract', 'claude-sonnet-4-5', 'anthropic', 1000, 400, 200, 50, 150, 1.25, 1.25);`);
+      } finally {
+        db.close();
+      }
+    }
+  },
+  {
+    client: 'cherrystudio',
+    // Native chat ledger counts include cached input and reasoning output.
+    // Agent and legacy aggregate rows overlap other sources and must be skipped.
+    expectedRow: { model: 'glm-5.2', input: 620, output: 280, cacheRead: 500, cacheWrite: 80, reasoning: 60 },
+    hasExplicitTotal: false,
+    expectedPeriod: { totalTokens: 1540, clientTokens: 1540, clientOutputTokens: 340 },
+    expectedSession: { id: 'zai', totalTokens: 1540, outputTokens: 340, reasoningTokens: 60 },
+    writeFixture(home) {
+      const { DatabaseSync } = require('node:sqlite');
+      const appData = process.platform === 'win32'
+        ? path.join(home, 'AppData', 'Roaming')
+        : process.platform === 'darwin'
+          ? path.join(home, 'Library', 'Application Support')
+          : path.join(home, '.config');
+      const dir = path.join(appData, 'CherryStudio', 'Data');
+      fs.mkdirSync(dir, { recursive: true });
+      const db = new DatabaseSync(path.join(dir, 'cherrystudio.sqlite'));
+      try {
+        db.exec(`CREATE TABLE ai_usage_record (
+          id TEXT PRIMARY KEY, record_kind TEXT, message_kind TEXT,
+          provider_id TEXT, model_id TEXT, input_tokens INTEGER,
+          output_tokens INTEGER, cache_read_tokens INTEGER, cache_write_tokens INTEGER,
+          reasoning_tokens INTEGER, cost REAL, cost_currency TEXT, created_at INTEGER
+        );
+        INSERT INTO ai_usage_record VALUES
+          ('chat-1', 'invocation', 'chat', 'zai', 'glm-5.2', 1200, 340, 500, 80, 60, 0.0314, 'USD', 1787196900000),
+          ('agent-1', 'invocation', 'agent-session', 'zai', 'glm-5.2', 1200, 340, 500, 80, 60, 0.0314, 'USD', 1787196900000),
+          ('legacy-1', 'legacy-aggregate', 'chat', 'zai', 'glm-5.2', 1200, 340, 500, 80, 60, 0.0314, 'USD', 1787196900000);`);
+      } finally {
+        db.close();
+      }
+    }
+  },
   ...['codebuddy', 'workbuddy'].map((client) => ({
     client,
     // Pinned Tencent Buddy raw-usage regression: ambiguous input stays intact;
@@ -188,6 +263,39 @@ const TOKEN_CONTRACT_CASES = Object.freeze([
     }
   },
   {
+    client: 'catpaw',
+    platforms: ['darwin', 'win32'],
+    expectedRow: { model: 'glm-5.3-flash', input: 1200, output: 340, cacheRead: 500, cacheWrite: 80, reasoning: 0 },
+    hasExplicitTotal: false,
+    expectedPeriod: { totalTokens: 2120, clientTokens: 2120, clientOutputTokens: 340 },
+    expectedSession: { id: /^catpaw:catpaw:[0-9a-f]{12}:catpaw-moon:[0-9a-f]{12}:tm-contract$/, totalTokens: 2120, outputTokens: 340, reasoningTokens: 0 },
+    writeFixture(home) {
+      const { DatabaseSync } = require('node:sqlite');
+      const support = process.platform === 'win32'
+        ? path.join(home, 'AppData', 'Roaming') : path.join(home, 'Library', 'Application Support');
+      const dir = path.join(support, 'catpaw-moon');
+      fs.mkdirSync(dir, { recursive: true });
+      const db = new DatabaseSync(path.join(dir, 'catpaw-memory-tm-contract.db'));
+      try {
+        db.exec(`CREATE TABLE sessions (id TEXT PRIMARY KEY, extra TEXT NOT NULL,
+          conversation_id TEXT GENERATED ALWAYS AS (json_extract(extra, '$.conversationId')) STORED);
+          CREATE TABLE ui_sdk_messages (conversation_id TEXT NOT NULL, seq INTEGER NOT NULL,
+          message_id TEXT NOT NULL, role TEXT NOT NULL, payload TEXT NOT NULL, created_at_ms INTEGER,
+          updated_at_ms INTEGER NOT NULL, schema_version INTEGER NOT NULL DEFAULT 1,
+          PRIMARY KEY(conversation_id, seq));`);
+        db.prepare('INSERT INTO sessions VALUES (?, ?)').run('s', JSON.stringify({
+          conversationId: 'tm-contract', persistedModelId: 91,
+          persistedModelSelection: { isAuto: false, modelId: 91 }
+        }));
+        db.prepare('INSERT INTO ui_sdk_messages VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+          'tm-contract', 1, 'm1', 'assistant', JSON.stringify({ extra: { contextInfo: { usage: {
+            promptTokens: 1200, completionTokens: 340, cacheReadTokens: 500, cacheWriteTokens: 80, totalTokens: 2120
+          } } } }), 1789725600000, 1789725600000, 1
+        );
+      } finally { db.close(); }
+    }
+  },
+  {
     // Fork-only client (crates/tokscale-core/src/token_monitor/qodercn.rs):
     // JSONL input_tokens includes the cached prefix, which is split out into
     // cacheRead, and the qoder-custom-<profile>/ prefix is stripped.
@@ -292,7 +400,11 @@ const GROUP_BY_REJECTION = /invalid group-by value/i;
 // harness uses.
 const BLACKHOLE_PROXY = 'http://127.0.0.1:9';
 
-function writeFixtureHome() {
+function applicableTokenContracts(platform = process.platform) {
+  return TOKEN_CONTRACT_CASES.filter((contract) => !contract.platforms || contract.platforms.includes(platform));
+}
+
+function writeFixtureHome(modelContract) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tm-dsh-fixture-'));
   const sessionDir = path.join(home, '.dsh', 'sessions', FIXTURE_WORKSPACE_DIR, FIXTURE_SESSION_ID);
   fs.mkdirSync(sessionDir, { recursive: true });
@@ -300,8 +412,19 @@ function writeFixtureHome() {
   // none` backend writes this exact spelling, and the scanner/parser both
   // sniff the frame magic rather than assume compression, so this and a
   // zstd-compressed session.jsonl.zstd are equivalent inputs.
-  fs.writeFileSync(path.join(sessionDir, 'session.jsonl'), `${FIXTURE_LINES.join('\n')}\n`);
-  for (const contract of TOKEN_CONTRACT_CASES) contract.writeFixture(home);
+  const lines = [...FIXTURE_LINES];
+  if (modelContract) {
+    const turn = JSON.parse(lines[1]);
+    const source = turn.data.message.source;
+    source.model = modelContract.sourceModel;
+    source.replayState = { response: { id: 'chatcmpl-keepalive', responseModel: modelContract.responseModel } };
+    lines[1] = JSON.stringify(turn);
+    if (modelContract.headerModel) lines.splice(1, 0, JSON.stringify({
+      type: 'request/header', data: { header: { config: { model: modelContract.headerModel, provider: 'deepseek' } } }
+    }));
+  }
+  fs.writeFileSync(path.join(sessionDir, 'session.jsonl'), `${lines.join('\n')}\n`);
+  if (!modelContract) for (const contract of applicableTokenContracts()) contract.writeFixture(home);
   return home;
 }
 
@@ -347,7 +470,7 @@ function hermeticEnv(home) {
   // overrides would do the same for the fork-only qodercn client, and the
   // MiniMax data-directory overrides for the fork's mcode supplement.
   for (const key of [
-    'NO_PROXY', 'no_proxy', 'TOKSCALE_EXTRA_DIRS', 'DSH_HOME',
+    'NO_PROXY', 'no_proxy', 'TOKSCALE_EXTRA_DIRS', 'DSH_HOME', 'HERMES_HOME',
     'TOKEN_MONITOR_QODER_CN_DB_PATH', 'TOKEN_MONITOR_QODER_CN_PROJECTS_PATH', 'QODERCN_CONFIG_DIR',
     'MINIMAX_DATA_DIR', 'MAVIS_DATA_DIR', 'TOKSCALE_HEADLESS_DIR'
   ]) {
@@ -377,16 +500,16 @@ function runAgainstFixture(binPath, home, groupBy = 'client,model', client = FIX
   return parsed;
 }
 
-function assertExpected(parsed) {
+function assertExpected(parsed, expected = EXPECTED) {
   const entries = Array.isArray(parsed.entries) ? parsed.entries : [];
   if (entries.length !== 1) {
     throw new Error(`Expected exactly 1 fixture entry, got ${entries.length}: ${JSON.stringify(parsed)}`);
   }
   const entry = entries[0];
-  const mismatches = Object.entries(EXPECTED).filter(([key, value]) => entry[key] !== value);
+  const mismatches = Object.entries(expected).filter(([key, value]) => entry[key] !== value);
   if (mismatches.length > 0) {
     throw new Error(
-      `DSH fixture mismatch — expected ${JSON.stringify(EXPECTED)}, got ${JSON.stringify(entry)}. ` +
+      `DSH fixture mismatch — expected ${JSON.stringify(expected)}, got ${JSON.stringify(entry)}. ` +
         'If this is a legitimate upstream behavior change, update EXPECTED and scripts/vendor/tokscale.json together, do not just silence this check.'
     );
   }
@@ -477,15 +600,25 @@ function main() {
     } else {
       assertSessionMetadata(runAgainstFixture(binPath, home, SESSION_GROUP_BY));
     }
-    for (const contract of TOKEN_CONTRACT_CASES) {
+    for (const contract of applicableTokenContracts()) {
       assertTokenContract(runAgainstFixture(binPath, home, 'client,session,model', contract.client), contract);
     }
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
   }
 
+  for (const contract of DSH_MODEL_CONTRACT_CASES) {
+    const modelHome = writeFixtureHome(contract);
+    try {
+      const parsed = runAgainstFixture(binPath, modelHome);
+      assertExpected(parsed, { ...EXPECTED, model: contract.expectedModel });
+      const period = extractUsageFromTokscale(parsed);
+      if (period.totalTokens !== 2910 || period.clientOutputs.dsh !== 25) throw new Error('DSH model attribution changed token accounting');
+    } finally { fs.rmSync(modelHome, { recursive: true, force: true }); }
+  }
+
   console.log(
-    `Verified ${isUpstream ? 'npm-installed' : 'vendored'} tokscale (${key}): DSH and ${TOKEN_CONTRACT_CASES.length} tracked-client token contract fixture(s) parse correctly, and ${isUpstream ? `'${SESSION_GROUP_BY}' is rejected as the collector's fallback expects` : 'the joined grouping reports session and workspace metadata'}.`
+    `Verified ${isUpstream ? 'npm-installed' : 'vendored'} tokscale (${key}): DSH and ${applicableTokenContracts().length} tracked-client token contract fixture(s) applicable to ${process.platform} parse correctly, and ${isUpstream ? `'${SESSION_GROUP_BY}' is rejected as the collector's fallback expects` : 'the joined grouping reports session and workspace metadata'}.`
   );
 }
 
@@ -498,4 +631,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { main, TOKEN_CONTRACT_CASES };
+module.exports = { main, TOKEN_CONTRACT_CASES, DSH_MODEL_CONTRACT_CASES, applicableTokenContracts, writeFixtureHome, assertExpected };

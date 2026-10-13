@@ -59,6 +59,11 @@ function createDeviceRuntime(options = {}, deps = {}) {
     const configured = {
       ...nextUsageOptions,
       ...runtimeOptions,
+      ...(typeof options.onSessionActivity === 'function' ? { onSessionActivity(patch) {
+        if (!active || generation !== usageGeneration) return;
+        if (!deviceState.updateActivity(patch, { epoch })) return;
+        options.onSessionActivity?.(patch);
+      } } : {}),
       // A worker-hosted runtime (usageHost.js) has already run the transform
       // where the session archive lives, and says so in `meta`.
       onUpdate(summary, reason, meta) {
@@ -191,6 +196,11 @@ function createDeviceRuntime(options = {}, deps = {}) {
     }),
     getSnapshot: () => deviceState.getSnapshot(),
     reconfigureUsage,
+    setCodexDotsVisible: (visible) => {
+      if (!active) return Promise.resolve(false);
+      activeUsageOptions = { ...activeUsageOptions, codexDotsVisible: visible !== false };
+      return usageRuntime.setCodexDotsVisible(visible);
+    },
     reconfigureLimits: (next) => active ? limitsRuntime.reconfigure(next) : null,
     refreshClient: (clientId, refreshOptions) => active
       ? usageRuntime.refreshClient(clientId, refreshOptions)

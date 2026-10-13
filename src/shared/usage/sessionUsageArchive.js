@@ -93,6 +93,8 @@ function normalizeSessionUsageArchive(value) {
     for (const periodName of PERIODS) {
       const session = normalizedSessionFrom(rawPeriods?.[periodName], rawKey);
       if (!session || isReasonixSyntheticSession(session, rawKey) || !hasSessionUsage(session)) continue;
+      delete session.liveActivity;
+      delete session.waitingForInput;
       const key = sessionKey(session.client, session.sessionId);
       if (!key) continue;
       entry.client = session.client;
@@ -166,6 +168,7 @@ function updateSessionUsageArchive(existingArchive, deviceRecord, capturedAt = n
   const capturedAtIso = captureDate.toISOString();
   const day = localDay(captureDate);
   const month = localMonth(captureDate);
+  const sourceArchivedKeys = new Set(deviceRecord.codexLocalSessionKeys || []);
   for (const periodName of PERIODS) {
     if (periodName === 'today' && archive.prunedDay && day < archive.prunedDay) continue;
     if (periodName === 'month' && archive.prunedMonth && month < archive.prunedMonth) continue;
@@ -177,6 +180,7 @@ function updateSessionUsageArchive(existingArchive, deviceRecord, capturedAt = n
       if (isReasonixSyntheticSession(session) || !hasSessionUsage(session)) continue;
       const archiveKey = sessionKey(session.client, session.sessionId);
       if (!archiveKey) continue;
+      if (sourceArchivedKeys.has(archiveKey)) continue;
       const entry = archive.sessions[archiveKey] || {
         client: session.client,
         sessionId: session.sessionId,
@@ -202,6 +206,8 @@ function updateSessionUsageArchive(existingArchive, deviceRecord, capturedAt = n
       // only in what the round-trip drops is caught by the second comparison.
       if (sameWindow && sameJson(entry.periods[periodName], session)) continue;
       const nextSession = cloneJson(session);
+      delete nextSession.liveActivity;
+      delete nextSession.waitingForInput;
       if (sameWindow && sameJson(entry.periods[periodName], nextSession)) continue;
       entry.client = session.client;
       entry.sessionId = session.sessionId;
