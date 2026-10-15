@@ -102,7 +102,10 @@
   ].map((client) => Object.freeze({
     defaultTracked: true,
     forkOnly: false,
-    locallyParsed: false,
+    // `locallyParsed` is deliberately NOT materialised here. Only the entries
+    // that set it to true carry the key, so a catalog entry still deepEquals the
+    // four-field shape upstream's tests assert (gooseSources.test.js and friends
+    // compare whole entries). Consumers treat it as falsy when absent.
     ...client
   })));
 
