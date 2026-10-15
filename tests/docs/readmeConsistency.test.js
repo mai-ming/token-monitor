@@ -68,6 +68,7 @@ const supportedToolOrder = [
   'GitHub Copilot',
   'Pi',
   'Oh My Pi',
+  'Goose',
   'Zed',
   'Kilo',
   'Command Code',
@@ -96,6 +97,7 @@ const supportedToolOrder = [
   'Trae CN',
   'Alibaba Cloud',
   'StepFun',
+  'Notion AI',
   'Third-party APIs'
 ];
 
@@ -116,6 +118,7 @@ const supportedToolIdOrder = [
   'copilot',
   'pi',
   'omp',
+  'goose',
   'zed',
   'kilo',
   'commandcode',
@@ -144,6 +147,7 @@ const supportedToolIdOrder = [
   'trae',
   'alibaba',
   'stepfun',
+  'notion',
   'thirdparty'
 ];
 
