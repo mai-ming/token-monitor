@@ -1091,9 +1091,23 @@ async function collectUsageOnce(options) {
     throwIfAborted(options.signal);
     throwIfAborted(options.signal);
     // Local adapters, read in-process rather than by tokscale. Collected before
-    // the anchor branch so both tick shapes merge the same periods, and skipped
-    // entirely when a targeted tick did not ask for them.
-    if (includesLiveAgent && (!targetRequested || targetClients.includes('liveagent'))) {
+    // the anchor branch so both tick shapes merge the same periods.
+    // These stores are deliberately NOT gated on the target set, unlike the
+    // tokscale scans below. A targeted tick normally reuses the anchor's
+    // partitions for every non-target client, so skipping this read looks
+    // harmless — but when the targeted scan comes back unusable the tick
+    // discards that reuse and rebuilds *every* partition from one full
+    // snapshot (`hasUnsafeTargetedResult` below), and that snapshot has no
+    // local rows to fall back on: tokscale reports nothing of its own for `pi`,
+    // whose whole contribution comes from the Pi Desktop store. The partition
+    // then reads zero for the rest of the tick, and month/allTime absorb the
+    // same loss through applyPeriodDelta, so the total flips back and forth as
+    // watch events alternate between the reuse and the rebuild path (reported
+    // on a real profile as DAY oscillating between ~265M and ~408M with the
+    // 143M `pi` partition appearing and vanishing). Reproduced at the
+    // collectUsageOnce boundary against a Pi Desktop store holding 143M: the
+    // unsafe-fallback tick reported 153M with this read and 10M without it.
+    if (includesLiveAgent) {
       try {
         const liveAgentRowsCollected = collectLiveAgentRows({ homeDir: options.homeDir, dbPaths: [...liveAgentDataPaths({ homeDir: options.homeDir }).dbPaths, ...localCustomScanDbPaths('liveagent', options.customScanPaths, 'chat-history.sqlite3')] });
         liveAgentPricing = await resolveLocalModelPricing(liveAgentRowsCollected, {
@@ -1111,7 +1125,7 @@ async function collectUsageOnce(options) {
         if (typeof options.logger === 'function') options.logger(`liveagent parse failed: ${err.message}`);
       }
     }
-    if (includesPi && (!targetRequested || targetClients.includes('pi'))) {
+    if (includesPi) {
       try {
         // Pi Desktop is a separate local store behind the tokscale-parsed `pi`
         // client; its database path is controlled by
