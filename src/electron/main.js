@@ -189,15 +189,18 @@ const {
   normalizeHomeModuleOrder
 } = require('./renderer/homeModulePreferences');
 const {
+  APP_UPDATE_STARTUP_DELAY_MS,
   appUpdateInstallSupport,
   classifyAppUpdateError,
   checkLatestRelease,
   deriveAppUpdateAvailability,
   downloadedAppUpdateMatchesLatest,
   installFailureErrorKind,
+  latestForCurrentVersion,
   latestFromUpdaterInfo,
   mergeLatestReleaseMetadata,
   providerUpdateCheckAvailability,
+  RELEASES_URL,
   resolveAppUpdateCheckError,
   shouldDownloadAutomaticAppUpdate,
   shouldSkipAppUpdateCheck,
@@ -414,6 +417,7 @@ const {
   restoreFloatingBubbleWindow
 } = require('./floatingBubble');
 const { applyWindowsChrome } = require('./windowsChrome');
+const { installWindowsNonActivatingInput } = require('./windowsNonActivatingInput');
 const { canUseEdgeDock, createEdgeDockController, edgeDockSupported } = require('./edgeDock/controller');
 const { createFullScreenProbe } = require('./edgeDock/fullScreenProbe');
 const {
@@ -5837,6 +5841,7 @@ function ensureEdgeDockController() {
       return applyVibrancyMask(win, png, width, height);
     },
     primaryButtonDown: () => primaryButtonDown(process.platform),
+    installNonActivatingInput: (win) => installWindowsNonActivatingInput(win, { logger: (message) => console.log(message) }),
     performHaptic: (pattern, performanceTime) => performMacHaptic({ pattern, performanceTime }),
     isFullScreen: createFullScreenProbe({ platform: process.platform, screen, logger: (message) => console.log(message) }),
     // The dock card's Switch button runs the same swap the Limits view does,
@@ -6653,6 +6658,9 @@ function configureNativeAppUpdater() {
   appUpdateNativeConfigured = true;
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
+  // Notes for every release between this version and the latest, not only the
+  // latest's, so the update card covers everything the user is about to receive.
+  autoUpdater.fullChangelog = true;
   autoUpdater.logger = console;
   autoUpdater.on('download-progress', (progress) => {
     setNativeAppUpdateState({
@@ -6739,7 +6747,7 @@ async function checkAppUpdateProvider() {
 function deriveAppUpdateState() {
   const block = settings?.appUpdate || {};
   const currentVersion = app.getVersion();
-  const latest = block.lastKnownLatest || null;
+  const latest = latestForCurrentVersion(block.lastKnownLatest || null, currentVersion);
   const dismissedVersion = block.dismissedVersion || null;
   const installSupport = appUpdateInstallSupport({ isPackaged: app.isPackaged, platform: process.platform, env: process.env });
   const availability = deriveAppUpdateAvailability({
@@ -6752,6 +6760,7 @@ function deriveAppUpdateState() {
   return {
     currentVersion,
     latest,
+    releasesUrl: RELEASES_URL,
     hasUpdate: availability.hasUpdate,
     showUpdateNotice: availability.showUpdateNotice,
     dismissedVersion,
@@ -6900,10 +6909,21 @@ function maybeRunBackgroundUpdateCheck() {
   runAppUpdateCheck({ force: false }).catch(() => {});
 }
 
+function scheduleStartupAppUpdateCheck() {
+  const timer = setTimeout(() => {
+    runAppUpdateCheck({ bypassCooldown: true }).catch(() => {});
+  }, APP_UPDATE_STARTUP_DELAY_MS);
+  timer.unref?.();
+}
+
 function startAppUpdateBackgroundChecks() {
   if (appUpdateBackgroundTimer) return;
   appUpdateBackgroundTimer = setInterval(maybeRunBackgroundUpdateCheck, 60 * 60 * 1000);
   appUpdateBackgroundTimer.unref?.();
+  // A machine that slept overnight should not wait for the next hourly tick to
+  // notice a release. Both still go through the cooldown.
+  powerMonitor.on('resume', maybeRunBackgroundUpdateCheck);
+  powerMonitor.on('unlock-screen', maybeRunBackgroundUpdateCheck);
 }
 
 function dismissAppUpdateVersion(version) {
@@ -9214,7 +9234,7 @@ app.whenReady().then(() => {
       createWindow();
     }
   });
-  maybeRunBackgroundUpdateCheck();
+  scheduleStartupAppUpdateCheck();
   startAppUpdateBackgroundChecks();
 });
 
